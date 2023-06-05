@@ -30,6 +30,9 @@ struct data
     float rmsb2;
 	float current2;
 	float T2;
+
+    float AmpChargeMean;
+    float AmpChargeRMS;
 };
 
 void fitBVscan(int num1, int num2);
@@ -64,7 +67,7 @@ int main(int argv, char *argc[])
                     // std::cout << ", elapsed time in seconds: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " sec." << std::endl;
                 // }
                 sscanf(fname.Data(), "output0000%d.root", &num1);
-                if ((num1 >= 4204)) //&&(num1 < 3531))
+                if ((num1 >= 4474)) //&&(num1 < 3531))
                 {
                     std::cout << "Processing run " << num1 << std::endl;
                     fitGain(num1);
@@ -98,7 +101,7 @@ void fitBVscan(int runstart, int runstop)
 	str += "_run";
 	str += runstop;
 
-    std::string str_result = "output_results.txt";
+    std::string str_result = "output_results_BVscans.txt";
     FILE* ptr_res = fopen(str_result.c_str(), "a+");
     if (ptr_res == NULL) {
         printf("cannot open output file\n");
@@ -165,7 +168,7 @@ data fitBVstep_mod(const char* fileName)
   fileName_full += fileName;
   //cout << "Analyzing file " << fileName << endl;sssss
   TFile *file = TFile::Open(fileName_full);
-  TH1F *htemp1, *htemp2, *hBV1, *hBV2, *hI1, *hI2, *hT1, *hT2;
+  TH1F *htemp1, *htemp2, *hBV1, *hBV2, *hI1, *hI2, *hT1, *hT2, *hQ4, *hB1, *hB2;
   TH2F *hmean_rms1, *hmean_rms2;
   TProfile *hmean1, *hmean2, *hrms1, *hrms2;
 
@@ -173,6 +176,7 @@ data fitBVstep_mod(const char* fileName)
   file->GetObject("ch1/waveformMEAN_ch1",hmean1);
   file->GetObject("ch1/waveformRMS_ch1",hrms1);
   file->GetObject("ch1/Mean_vs_RMS_ch1",hmean_rms1);
+  file->GetObject("ch1/baseline_spectrum_ch1",hB1);
   file->GetObject("gpib/gpib_0",hI1);
   file->GetObject("gpib/gpib_2",hBV1);
   file->GetObject("temperatures/temperature_0",hT1);
@@ -182,10 +186,14 @@ data fitBVstep_mod(const char* fileName)
   file->GetObject("ch2/waveformMEAN_ch2",hmean2);
   file->GetObject("ch2/waveformRMS_ch2",hrms2);
   file->GetObject("ch2/Mean_vs_RMS_ch2",hmean_rms2);
+  file->GetObject("ch2/baseline_spectrum_ch2",hB2);
   file->GetObject("gpib/gpib_1",hI2);
   file->GetObject("gpib/gpib_3",hBV2);
   file->GetObject("temperatures/temperature_1",hT2);
   TF1 *ch2 = GPFit(htemp2,0);
+
+  file->GetObject("ch4/charge_spectrum_ch4",hQ4);//add cut!!!
+  TF1 *ch4 = GFit(hQ4, 0);
 
   data output;
   output.Gain1 = ch1->GetParameter(1);
@@ -211,13 +219,20 @@ data fitBVstep_mod(const char* fileName)
   output.rms1 = hrms1->GetSum()/hrms1->GetEntries();
   output.rms2 = hrms2->GetSum()/hrms2->GetEntries();
 
-  hmean_rms1->GetXaxis()->SetRangeUser(-100,30);
-  output.baseline1 = hmean_rms1->GetMean(2);
-  output.rmsb1 = hmean_rms1->GetRMS(2);
-  hmean_rms2->GetXaxis()->SetRangeUser(-100,30);
-  output.baseline2 = hmean_rms2->GetMean(2);
-  output.rmsb2 = hmean_rms2->GetRMS(2);
+  hmean_rms1->GetXaxis()->SetRangeUser(-100,10);
+  //output.baseline1 = hmean_rms1->GetMean(2);
+//   output.rmsb1 = hmean_rms1->GetRMS(2);
+  output.baseline1 = hB1->GetMean();
+  output.rmsb1 = hB1->GetRMS();
 
+  hmean_rms2->GetXaxis()->SetRangeUser(-100,10);
+//   output.baseline2 = hmean_rms2->GetMean(2);
+//   output.rmsb2 = hmean_rms2->GetRMS(2);
+  output.baseline2 = hB2->GetMean();
+  output.rmsb2 = hB2->GetRMS();
+
+  output.AmpChargeMean = ch4->GetParameter(1);
+  output.AmpChargeRMS = ch4->GetParameter(2);
   
   delete htemp1;
   delete htemp2;
@@ -236,6 +251,8 @@ data fitBVstep_mod(const char* fileName)
   delete hmean_rms1;
   delete hmean_rms2;
 
+  delete hQ4;
+
   file->Close();
 
   delete file;
@@ -246,7 +263,7 @@ data fitBVstep_mod(const char* fileName)
 
 void fitGain(int run)
 {
-    std::string str_result = "output_results4.txt";
+    std::string str_result = "output_results7.txt";
     FILE* ptr_res = fopen(str_result.c_str(), "a+");
     if (ptr_res == NULL) {
         printf("cannot open output file\n");
@@ -261,7 +278,7 @@ void fitGain(int run)
 	filename += ".root";		
 	o = fitBVstep_mod(filename);
 
-	fprintf(ptr_res,"%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", run,
+	fprintf(ptr_res,"%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", run,
                                                                             o.Gain1, o.Gain2,
                                                                             o.eGain1, o.eGain2,
                                                                             o.mean1, o.mean2,
@@ -269,7 +286,8 @@ void fitGain(int run)
                                                                             o.rms1, o.rms2,
                                                                             o.rmsb1, o.rmsb2,
                                                                             o.current1*1e9, o.current2*1e9,
-                                                                            o.T1, o.T2);
+                                                                            o.T1, o.T2,
+                                                                            o.AmpChargeMean, o.AmpChargeRMS);
 
     fclose(ptr_res);
 }

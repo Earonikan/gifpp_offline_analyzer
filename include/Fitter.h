@@ -188,7 +188,7 @@ TF1 *GPFit(TH1F* hist2proc, bool verbose, int xlow=-5000, int xhigh=50000){
   return (func);
 }
 
-TF1* GFit(TH1F *hist) {
+TF1* GFit(TH1F *hist, bool verbose) {
 
   double max = hist->GetMaximum();
   double lower_bound = hist->GetXaxis()->GetBinLowEdge(hist->FindFirstBinAbove(max/10,1,5,-1));
@@ -205,7 +205,7 @@ TF1* GFit(TH1F *hist) {
   std::cout << std::endl;*/
 
   TF1 *G_func = new TF1("1 fit","gaus",lower_bound, upper_bound);
-  hist->Fit(G_func,"RQMMULTITHREAD");
+  hist->Fit(G_func,"RQM0+");
   G_func->GetParameters(gparameters);
 
   /*std::cout << "Gaussian Fit 1 is Done. Parameters:" << std::endl;
@@ -237,22 +237,25 @@ TF1* GFit(TH1F *hist) {
   //LG_func->SetParLimits(3, 0, 500000);
   //LG_func->FixParameter(3, TMath::Sqrt(1049.09 + 27.53166 * gparameters[1]));
   LG_func->SetLineColor(kGreen);
-  hist->Fit(LG_func,"RQBM+MULTITHREAD");
+  hist->Fit(LG_func,"RQM0+");
   LG_func->GetParameters(parameters);
   //hist->GetXaxis()->UnZoom();
 
-  std::cout << "Gauss Fit is Done. Parameters:" << std::endl;
-  std::cout << "Maximum Gauss = " << parameters[0] << std::endl;
-  std::cout << "Mean Gauss = " << parameters[1] << std::endl;
-  std::cout << "Sigma Gauss = " << parameters[2] << std::endl;
+  if (verbose) {
+    std::cout << "Gauss Fit is Done. Parameters:" << std::endl;
+    std::cout << "Maximum Gauss = " << parameters[0] << std::endl;
+    std::cout << "Mean Gauss = " << parameters[1] << std::endl;
+    std::cout << "Sigma Gauss = " << parameters[2] << std::endl;
   
-  //Chi2 = LG_func->GetChisquare();
-  //NDF = LG_func->GetNDF();
+    //Chi2 = LG_func->GetChisquare();
+    //NDF = LG_func->GetNDF();
 
-  //std::cout << std::endl;
-  //std::cout << "Chi^2/NDF is " << Chi2 << " / " << NDF << std::endl;
-  std::cout << "Chi^2/NDF is " << Chi2/NDF << std::endl;
-  std::cout << std::endl;
+    //std::cout << std::endl;
+    //std::cout << "Chi^2/NDF is " << Chi2 << " / " << NDF << std::endl;
+    std::cout << "Chi^2/NDF is " << Chi2/NDF << std::endl;
+    std::cout << std::endl;
+
+  }
 
   return LG_func;
 
