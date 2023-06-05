@@ -1,7 +1,7 @@
 CXX = g++
 TARGET = offline_analyzer
 CXXFLAGS = -Wall -m64 -Wuninitialized -O2 -pthread -march=native -std=c++11 -Iinclude #-fsanitize=address
-CXXFLAGS += -DHAVE_ROOT_XML -DHAVE_ROOT_HTTP -DHAVE_THTTP_SERVER
+#CXXFLAGS += -DHAVE_ROOT_XML -DHAVE_ROOT_HTTP -DHAVE_THTTP_SERVER
 SRCDIR   = src
 HEADDIR  = include
 OBJDIR   = obj
@@ -13,12 +13,8 @@ OBJECTS  := $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
 ROOTFLAGS = $(shell root-config --cflags)
 ROOTLIBS =  $(shell root-config --libs)
-#ROOTLIBS += -lRHTTP -lThread
-#ROOTLIBS += -lSpectrum
-#ROOTLIBS += -lm -lz -lpthread
-ROOTLIBS += -lSpectrum -lutil -lrt -lGui -lCore -lImt -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lROOTVecOps -lTree -lTreePlayer -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTDataFrame -pthread -lm -ldl -rdynamic -lThread -lXMLParser -lXMLIO -lRHTTP -lm -lz -lpthread -Wl,-rpath,/home/qfl/packages/root/lib
-#ROOTLIBS += -lCAENDigitizer
-# DEPLIBS	=  -lCAENDigitizer
+ROOTLIBS += -lSpectrum -lutil -lrt -lGui -lCore -lImt -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lROOTVecOps -lTree -lTreePlayer -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTDataFrame -pthread -lm -ldl -rdynamic -lThread -lXMLParser -lXMLIO -lRHTTP -lm -lz -lpthread
+
 
 
 # $(BUILD)/$(TARGET): $(OBJECTS)
