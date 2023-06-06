@@ -67,7 +67,7 @@ int main(int argv, char *argc[])
                     // std::cout << ", elapsed time in seconds: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " sec." << std::endl;
                 // }
                 sscanf(fname.Data(), "output0000%d.root", &num1);
-                if ((num1 >= 4474)) //&&(num1 < 3531))
+                if ((num1 >= 4739)&&(num1 <= 4846))
                 {
                     std::cout << "Processing run " << num1 << std::endl;
                     fitGain(num1);
@@ -192,7 +192,7 @@ data fitBVstep_mod(const char* fileName)
   file->GetObject("temperatures/temperature_1",hT2);
   TF1 *ch2 = GPFit(htemp2,0);
 
-  file->GetObject("ch4/charge_spectrum_ch4",hQ4);//add cut!!!
+  file->GetObject("ch4/charge_spectrum_ch4",hQ4);
   TF1 *ch4 = GFit(hQ4, 0);
 
   data output;

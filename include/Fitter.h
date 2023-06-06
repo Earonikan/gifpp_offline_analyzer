@@ -146,7 +146,8 @@ TF1 *GPFit(TH1F* hist2proc, bool verbose, int xlow=-5000, int xhigh=50000){
   func -> SetParameters( 0.1, fp.gm1-fp.gm0, sqrt(abs(fp.gs1*fp.gs1 - fp.gs0*fp.gs0)), mu_hist, fp.gm0, fp.gs0, binwidth*ntotal, npe_peaks); //initial parameters
   func -> SetParLimits(1, 0, 1.5*(fp.gm1-fp.gm0));
   //func -> FixParameter(0, 0);
-  func -> FixParameter(7, npe_peaks);
+  //func -> FixParameter(7, npe_peaks);
+  func -> FixParameter(7, 5);
   func -> SetParNames("lambda", "gain_SPE", "sigma_gain", "mu_avg", "mu0", "sigma0", "NxW", "npe_peaks");
   func -> SetNpx(1000);
   if (verbose) std::cout<<"GP fiting"<<std::endl;
