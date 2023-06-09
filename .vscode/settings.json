@@ -55,6 +55,7 @@
         "ratio": "cpp",
         "system_error": "cpp",
         "thread": "cpp",
-        "atomic": "cpp"
+        "atomic": "cpp",
+        "string": "cpp"
     }
 }

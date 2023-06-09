@@ -1,35 +1,12 @@
 #include "stdafx.hpp"
-// #include "Fitter.hpp"
 #include "Analyzer.hpp"
 
 
-int main(int argv, char *argc[]) // 
+int main(int argv, char *argc[])
 {
-    std::string arg, key, runlist_filename = "/home/qfl/online/midas_digi/daq/runs_history.txt";
-    int runstart = 0, runstop = 0;
 
-    for (int i = 1; i < argv-1; ++i)
-    {
-        arg = argc[i];
-        if (arg == "--type")
-        {
-            key = argc[i+1];
-            if ((key == "BVSCAN") || (key == "LED") || (key == "ALL")) std::cout << "Using key: " << key << std::endl;
-            else
-            {
-                std::cout << "Wrong key parsed!!!" << std::endl;
-                exit(0);
-            }
-        }
-        if (arg == "--filename") runlist_filename = argc[i+1];
-        
-    }
-
-    Analyzer analyzer(key, runlist_filename, runstart, runstop);
-
-
-
-
+    Analyzer analyzer(argv, argc);
+    analyzer.Processing();
 
     // const char *ext = ".root";
     // const char *ext = "ch1.png";

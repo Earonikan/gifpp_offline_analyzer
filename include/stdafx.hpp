@@ -4,6 +4,7 @@
 #include <fstream>
 #include <dirent.h>
 #include <sstream>
+#include <map>
 
 #include <TH1.h>
 #include "TF1.h"
