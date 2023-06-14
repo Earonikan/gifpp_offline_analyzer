@@ -6,11 +6,19 @@ struct Parameters
 {
     std::string runlist_filename = "/home/qfl/online/midas_digi/daq/runs_history.txt";
     int runstart = 0;
-    int runstop = 0;
+    int runstop = 99999;
     bool stdout_flag = 0;
-    std::vector<std::string> argKeys = {"--runtype", "--filename", "--runnumber", "--runrange", "--stdout"};
-    std::vector<std::string> runTypes = {"BVSCAN", "LED", "ALL", "COINCIDENCE", "COSMIC", "LYSO_SELF"};
+    int verbose = 0;
+    std::vector<std::string> argKeys = {"--runtype", "--filename", "--runnumber", "--runrange", "--stdout", "--verbose"};
+    std::vector<std::string> runTypes = {"BVSCAN", "LED", "MONITORING", "ALL", "COINCIDENCE", "COSMIC", "LYSO_SELF"};
     std::string runkey = runTypes[2];
+    std::string data_start = "Wed Jun  7 22:39:50 2023";
+};
+
+struct Date
+{
+	std::map<std::string, int> month {{"Jan", 0}, {"Feb", 31}, {"Mar", 59}, {"Apr", 90}, {"May", 120}, {"Jun", 151}, {"Jul", 181}, {"Aug", 212}, {"Sep", 243}, {"Oct", 273}, {"Nov", 304}, {"Dec", 334}};
+
 };
 
 struct FinalData
@@ -36,12 +44,19 @@ struct FinalData
         float T2;
 
         float LYSO_Yield;
-	    float LYSO_eYield;
-	    float LYSO_Gain;
-	    float LYSO_eGain;
+	float LYSO_eYield;
+	float LYSO_Gain;
+	float LYSO_eGain;
+
+	float dip_15402;
+	float dip_15403;
+	float dip_filter;
+	
+	std::string timestart;
 };
 
 struct GenPoisParams {
+
     /* GP fit */
     double gain, u0, s0, sG, lambda, navg, npeaks, chi2_ndf;
     /* GP fit errors*/

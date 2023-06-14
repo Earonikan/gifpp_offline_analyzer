@@ -18,7 +18,8 @@ InputArguments::InputArguments(int argv, char *argc[])
                 case 1:
                 {
                     parameters.runkey = argc[i+1];
-                    if (parser2.ParseThis(parameters.runkey) > 0) std::cout << "Using runkey: " << parameters.runkey << std::endl;
+                    if (parser2.ParseThis(parameters.runkey) > 0)
+			{if (parameters.verbose > 0) std::cout << "Using runkey: " << parameters.runkey << std::endl;}
                     else
                     {
                         std::cout << "Wrong runkey provided!!!" << std::endl;
@@ -37,17 +38,24 @@ InputArguments::InputArguments(int argv, char *argc[])
                 {
                     parameters.runstart = atoi(argc[i+1]);
                     parameters.runstop = parameters.runstart;
+		    break;
                 }
 
                 case 4:
                 {
                     parameters.runstart = atoi(argc[i+1]);
                     parameters.runstop = atoi(argc[i+2]);
+		    break;
                 }
 
                 case 5:
                 {
-                    parameters.stdout_flag = 1;
+                    parameters.stdout_flag = atoi(argc[i+1]); break;
+                }
+		
+		case 6:
+                {
+                    parameters.verbose = atoi(argc[i+1]); break;
                 }
 
             } 

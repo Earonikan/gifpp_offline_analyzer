@@ -15,23 +15,23 @@ class Analyzer
 
 private:
     // void fitBVscan(int num1, int num2);
-    FinalData fitBVstep(const char* fileName);
+    FinalData fitBVstep(std::string pathname);
     void fitGain(int run);
 
-    TF1 *GPFit(TH1F* hist2proc, bool verbose, int xlow = -5000, int xhigh = 50000);
-    TF1 *GFit(TH1F *hist, bool verbose, int rebin, int multA, int multB);
-    TF1 *DGFit(TH1F *hist, bool verbose, int rebin);
+    TF1 *GPFit(TH1F* hist2proc, int xlow = -5000, int xhigh = 50000);
+    TF1 *GFit(TH1F *hist, int rebin, int multA, int multB);
+    TF1 *DGFit(TH1F *hist, int rebin);
 
     std::ifstream runlist_file;
     Parameters parameters;
+    GenPoisParams fp;
+    std::string runtype_;
+    std::string pathname = "/home/qfl/online/midas_digi/daq/";
+    Date dt;
 
-    // enum RunTypes {};
-
-    std::map<std::string, int> RunTypes = {{"BVSCAN", 1}, {"LED", 2}, {"ALL", 3}, {"COINCIDENCE", 4}, {"COSMIC", 5}, {"LYSO_SELF", 6}};
-
-    GenPoisParams *fp;
-
-    void ProcessingAll();
+    void ProcessingMonitoring();
+    void ProcessingLED();
+    long int TimeConverterToSec(std::string date1, std::string date2);
 public:
     Analyzer(int argv, char *argc[]);
     // Analyzer(std::string key, std::string runlist_filename, int runstart, int runstop, bool stdout_flag);
