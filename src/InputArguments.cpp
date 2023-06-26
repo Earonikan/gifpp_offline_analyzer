@@ -10,7 +10,7 @@ InputArguments::InputArguments(int argv, char *argc[])
         std::string arg;
         ParameterParser parser1(parameters.argKeys);
         ParameterParser parser2(parameters.runTypes);
-        for (int i = 1; i < argv-1; ++i)
+        for (int i = 1; i < argv; ++i)
         {
             arg = argc[i];
             switch (parser1.ParseThis(arg))
@@ -19,7 +19,9 @@ InputArguments::InputArguments(int argv, char *argc[])
                 {
                     parameters.runkey = argc[i+1];
                     if (parser2.ParseThis(parameters.runkey) > 0)
-			{if (parameters.verbose > 0) std::cout << "Using runkey: " << parameters.runkey << std::endl;}
+			        {
+                        if (parameters.verbose > 0) std::cout << "Using runkey: " << parameters.runkey << std::endl;
+                    }
                     else
                     {
                         std::cout << "Wrong runkey provided!!!" << std::endl;
@@ -30,32 +32,36 @@ InputArguments::InputArguments(int argv, char *argc[])
 
                 case 2:
                 {
-                    parameters.runlist_filename = argc[i+1];
-                    break;
+                    parameters.runlist_filename = argc[i+1]; break;
                 }
 
                 case 3: 
                 {
                     parameters.runstart = atoi(argc[i+1]);
                     parameters.runstop = parameters.runstart;
-		    break;
+		            break;
                 }
 
                 case 4:
                 {
                     parameters.runstart = atoi(argc[i+1]);
                     parameters.runstop = atoi(argc[i+2]);
-		    break;
+	    	        break;
                 }
 
                 case 5:
                 {
-                    parameters.stdout_flag = atoi(argc[i+1]); break;
+                    parameters.stdout_flag = true; break;
                 }
 		
-		case 6:
+		        case 6:
                 {
                     parameters.verbose = atoi(argc[i+1]); break;
+                }
+
+                case 7:
+                {
+                    parameters.root_tree = true; break;
                 }
 
             } 

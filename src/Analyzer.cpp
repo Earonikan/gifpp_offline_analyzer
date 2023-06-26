@@ -1,4 +1,4 @@
-    #include "Analyzer.hpp"
+#include "Analyzer.hpp"
 
 double generpoiss(double *x, double *p)
 {
@@ -33,6 +33,8 @@ Analyzer::Analyzer(int argv, char *argc[])
     parameters = input.Get();
 
     runlist_file.open(parameters.runlist_filename);
+
+    if (parameters.root_tree) {root_file = new TFile("GIFpp_Data_TTree.root","recreate");}
         
     if (!runlist_file.is_open())
     {
@@ -45,12 +47,50 @@ Analyzer::~Analyzer()
 {
 	if (parameters.verbose > 0) std::cout << "Closing Analyzer!" << std::endl;
     runlist_file.close();
+    if (parameters.root_tree)
+    {
+        tree->Write();
+        // tree->Scan();
+        root_file->Write();
+        root_file->Close();
+    }
 }
 
 void Analyzer::Processing()
 {
     ParameterParser parser(parameters.runTypes);
     //std::cout << parser.ParseThis(parameters.runkey) << std::endl;
+    if (parameters.root_tree)
+    {
+        // 
+        tree = new TTree("GIFpp_DATA", "GIFpp data tree");
+		
+		tree->Branch("run", &output.run);
+        tree->Branch("runtype", &output.runtype);
+        tree->Branch("time_stamp", &output.timestamp);
+        tree->Branch("Gain1", &output.Gain1);
+        tree->Branch("Gain2", &output.Gain2);
+        tree->Branch("eGain1", &output.eGain1);
+        tree->Branch("eGain2", &output.eGain2);
+        tree->Branch("mean1", &output.mean1);
+        tree->Branch("mean2", &output.mean2);
+        tree->Branch("baseline1", &output.baseline1);
+        tree->Branch("baseline2", &output.baseline2);
+        tree->Branch("rms1", &output.rms1);
+        tree->Branch("rms2", &output.rms2);
+        tree->Branch("rmsb1", &output.rmsb1);
+        tree->Branch("rmsb2", &output.rmsb2);
+        tree->Branch("current1", &output.current1);
+        tree->Branch("current2", &output.current2);
+        tree->Branch("BV1", &output.BV1);
+        tree->Branch("BV2", &output.BV2);
+        tree->Branch("T1", &output.T1);
+        tree->Branch("T2", &output.T2);
+        tree->Branch("LYSO_Yield", &output.LYSO_Yield);
+        tree->Branch("LYSO_Gain", &output.LYSO_Gain);
+        tree->Branch("dip_15402", &output.dip_15402);
+        tree->Branch("dip_filter", &output.dip_filter);
+    }
     switch (parser.ParseThis(parameters.runkey))
     {
         case 2:
@@ -82,7 +122,7 @@ void Analyzer::ProcessingLED()
                 if (runtype_ == "LED")
                 {
                     if (parameters.verbose > 0) std::cout << "Processing run " << runnum << std::endl;
-                    fitGain(runnum);
+                    AnalyzeRun(runnum);
                 }
             }
         }
@@ -109,7 +149,7 @@ void Analyzer::ProcessingMonitoring()
                 {
                 // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
                 	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
-                	fitGain(runnum);
+                	AnalyzeRun(runnum);
 				}
 
             }
@@ -245,10 +285,10 @@ long int Analyzer::TimeConverterToSec(std::string date1, std::string date2)
 
 }
 
-void Analyzer::fitGain(int run)
+void Analyzer::AnalyzeRun(int run)
 {
-
-	FinalData o;
+    output.run = run;
+    output.runtype = runtype_;
 	std::string filename;
 	filename +=	pathname;
 	if (run<1000) filename += "output00000";
@@ -262,10 +302,7 @@ void Analyzer::fitGain(int run)
 		if (parameters.verbose > 0) std::cout << "Run " << run << " file doesn't exist." << std::endl;
 		return;
 	}
-	file->Close();
-	delete file;
-
-	o = fitBVstep(filename);
+    else fitRun(file);
 
 	if (!parameters.stdout_flag) {
 		std::string str_result = "monitoring_results.txt";
@@ -275,48 +312,56 @@ void Analyzer::fitGain(int run)
 		    printf("cannot open output file\n");
 		    exit(0);
 		}
-		//std::cout << TimeConverterToSec(parameters.data_start, o.timestart) << std::endl;
-		fprintf(ptr_res,"%d\t%s\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", run,
-												runtype_.c_str(), TimeConverterToSec(parameters.data_start, o.timestart),
-				                                                                    o.Gain1, o.Gain2,
-				                                                                    o.eGain1, o.eGain2,
-				                                                                    o.mean1, o.mean2,
-				                                                                    o.baseline1, o.baseline2,
-				                                                                    o.rms1, o.rms2,
-				                                                                    o.rmsb1, o.rmsb2,
-				                                                                    o.current1*1e9, o.current2*1e9,
-				                                                                    o.T1, o.T2,
-				                                                                    o.LYSO_Yield, o.LYSO_Gain,
-												    o.dip_15402, o.dip_15403);
+		// std::cout << TimeConverterToSec(parameters.data_start, o.timestart) << std::endl;
+		fprintf(ptr_res,"%d\t%s\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output.run,
+												                                    output.runtype.c_str(), output.timestamp,
+				                                                                    output.Gain1, output.Gain2,
+				                                                                    output.eGain1, output.eGain2,
+				                                                                    output.mean1, output.mean2,
+				                                                                    output.baseline1, output.baseline2,
+				                                                                    output.rms1, output.rms2,
+				                                                                    output.rmsb1, output.rmsb2,
+				                                                                    output.current1*1e9, output.current2*1e9,
+                                                                                    output.BV1, output.BV2,
+				                                                                    output.T1, output.T2,
+				                                                                    output.LYSO_Yield, output.LYSO_Gain,
+												                                    output.dip_15402, output.dip_filter);
 
     	fclose(ptr_res);
 	}
 	else {
-
-		printf("%d\t%s\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", run,
-												runtype_.c_str(), TimeConverterToSec(parameters.data_start, o.timestart),
-				                                                                    o.Gain1, o.Gain2,
-				                                                                    o.eGain1, o.eGain2,
-				                                                                    o.mean1, o.mean2,
-				                                                                    o.baseline1, o.baseline2,
-				                                                                    o.rms1, o.rms2,
-				                                                                    o.rmsb1, o.rmsb2,
-				                                                                    o.current1*1e9, o.current2*1e9,
-				                                                                    o.T1, o.T2,
-				                                                                    o.LYSO_Yield, o.LYSO_Gain,
-												    o.dip_15402, o.dip_15403);
-
+		printf("%d\t%s\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output.run,
+												                                    output.runtype.c_str(), output.timestamp,
+				                                                                    output.Gain1, output.Gain2,
+				                                                                    output.eGain1, output.eGain2,
+				                                                                    output.mean1, output.mean2,
+				                                                                    output.baseline1, output.baseline2,
+				                                                                    output.rms1, output.rms2,
+				                                                                    output.rmsb1, output.rmsb2,
+				                                                                    output.current1*1e9, output.current2*1e9,
+                                                                                    output.BV1, output.BV2,
+				                                                                    output.T1, output.T2,
+				                                                                    output.LYSO_Yield, output.LYSO_Gain,
+												                                    output.dip_15402, output.dip_filter);
 	}
+    if (parameters.root_tree)
+    {        
+        tree->Fill();
+        // tree->Write();
+        //std::cout << output.runtype.c_str() << " " << output.timestamp << " " << output.Gain1 << std::endl;
+    }
+    file->Close();
+    delete file;
 }
 
-FinalData Analyzer::fitBVstep(std::string filename)
+void Analyzer::fitRun(TFile *file)
 {
-    // std::cout << "Analyzing file " << fileName_full << std::endl;
-    TFile *file = TFile::Open(filename.c_str());
+    // std::cout << "Analyzing file " << file->GetName() << std::endl;
+    // TFile *file = TFile::Open(filename.c_str());
     TH1F *htemp1, *htemp2, *hBV1, *hBV2, *hI1, *hI2, *hT1, *hT2, *hB1, *hB2, *hL3, *hLb3, *hDip1, *hDip2, *hDipF;// *hQ4
     TH2F *hmean_rms1, *hmean_rms2;
     TProfile *hmean1, *hmean2, *hrms1, *hrms2;
-	TTree *tree;
+	TTree *tr;
 
     gErrorIgnoreLevel = 6001;
 
@@ -340,11 +385,6 @@ FinalData Analyzer::fitBVstep(std::string filename)
     file->GetObject("gpib/gpib_3",hBV2);
     file->GetObject("temperatures/temperature_1",hT2);
     TF1 *ch2 = GPFit(htemp2);
-
-    //   file->GetObject("ch4/charge_spectrum_ch4",hQ4);
-    //   TF1 *ch4 = GFit(hQ4, 0);
-
-    FinalData output;
 
     file->GetObject("ch3/charge_spectrum_ch3",hL3);
     TF1 *ch3 = GFit(hL3, 256, 1, 3);
@@ -408,14 +448,25 @@ FinalData Analyzer::fitBVstep(std::string filename)
 
 	output.dip_15402 = hDip1->Integral()/hDip1->GetEntries();
 	output.dip_15403 = hDip2->Integral()/hDip2->GetEntries();
-	output.dip_filter = hDipF->Integral()/hDipF->GetEntries();
 
-	file->GetObject("Run_Data", tree);
+    float bsum = 0;
+    int nsum = 0, nlast = hDipF->FindLastBinAbove(0);
+    for (int i = 0; i < nlast; ++i) {
+        if (hDipF->GetBinContent(i) > 0) {
+            bsum += hDipF->GetBinContent(i);
+            nsum++;
+        }
+    }
+	output.dip_filter = 1.0*bsum/nsum;
+
+	file->GetObject("Run_Data", tr);
 	TString *cstr;
-	tree->SetBranchAddress("time_start", &cstr); 
-	tree->GetEntry(0);
+	tr->SetBranchAddress("time_start", &cstr); 
+	tr->GetEntry(0);
 	std::string sample_string(cstr->Data());
-	output.timestart = sample_string.substr(0,24);
+	sample_string = sample_string.substr(0,24);
+
+    output.timestamp = TimeConverterToSec(parameters.data_start, sample_string);
 
     delete htemp1;
     delete htemp2;
@@ -443,15 +494,14 @@ FinalData Analyzer::fitBVstep(std::string filename)
 	delete hDip1;
 	delete hDip2;
 	delete hDipF;
+    delete tr;
 	//delete cstr;
 
-    //delete hQ4;
+    // file->Close();
 
-    file->Close();
+    // delete file;
 
-    delete file;
-
-    return output;
+    // return output;
 
 }
 

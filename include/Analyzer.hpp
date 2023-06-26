@@ -15,8 +15,8 @@ class Analyzer
 
 private:
     // void fitBVscan(int num1, int num2);
-    FinalData fitBVstep(std::string pathname);
-    void fitGain(int run);
+    void fitRun(TFile *file);
+    void AnalyzeRun(int run);
 
     TF1 *GPFit(TH1F* hist2proc, int xlow = -5000, int xhigh = 50000);
     TF1 *GFit(TH1F *hist, int rebin, int multA, int multB);
@@ -28,6 +28,9 @@ private:
     std::string runtype_;
     std::string pathname = "/home/qfl/online/midas_digi/daq/";
     Date dt;
+    TFile *root_file;
+    TTree *tree;
+    FinalData output;
 
     void ProcessingMonitoring();
     void ProcessingLED();
