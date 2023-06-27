@@ -25,7 +25,6 @@ double generpoiss(double *x, double *p)
     return fitval;
 }
 
-// Analyzer::Analyzer(std::string runkey, std::string runlist_filename, int runstart, int runstop, bool stdout_flag):_runkey(runkey),_stdout_flag(stdout_flag),_runstart(runstart),_runstop(runstop)
 Analyzer::Analyzer(int argv, char *argc[])
 {
 
@@ -34,7 +33,7 @@ Analyzer::Analyzer(int argv, char *argc[])
 
     runlist_file.open(parameters.runlist_filename);
 
-    if (parameters.root_tree) {root_file = new TFile("GIFpp_Data_TTree.root","recreate");}
+    if (parameters.root_tree) {root_file = new TFile("GIFpp_Data.root","recreate");}
         
     if (!runlist_file.is_open())
     {
@@ -50,9 +49,10 @@ Analyzer::~Analyzer()
     if (parameters.root_tree)
     {
         tree->Write();
-        // tree->Scan();
+        tree_bv->Write();
         root_file->Write();
         root_file->Close();
+        // std::cout << "HERE" << std::endl;
     }
 }
 
@@ -62,7 +62,7 @@ void Analyzer::Processing()
     //std::cout << parser.ParseThis(parameters.runkey) << std::endl;
     if (parameters.root_tree)
     {
-        // 
+        //monitoring runs tree
         tree = new TTree("GIFpp_DATA", "GIFpp data tree");
 		
 		tree->Branch("run", &output.run);
@@ -90,9 +90,33 @@ void Analyzer::Processing()
         tree->Branch("LYSO_Gain", &output.LYSO_Gain);
         tree->Branch("dip_15402", &output.dip_15402);
         tree->Branch("dip_filter", &output.dip_filter);
+
+
+        //BV tree
+        tree_bv = new TTree("GIFpp_DATA_BVSCANs", "GIFpp data BV tree");
+		
+		tree_bv->Branch("runstart", &output_bv.runstart);
+        tree_bv->Branch("runstop", &output_bv.runstop);
+        tree_bv->Branch("time_stamp", &output_bv.timestamp);
+        tree_bv->Branch("BDV1", &output_bv.BDV1);
+        tree_bv->Branch("BDV2", &output_bv.BDV2);
+        tree_bv->Branch("eBDV1", &output_bv.eBDV1);
+        tree_bv->Branch("eBDV2", &output_bv.eBDV2);
+        tree_bv->Branch("Slope1", &output_bv.Slope1);
+        tree_bv->Branch("Slope2", &output_bv.Slope2);
+        tree_bv->Branch("eSlope1", &output_bv.eSlope1);
+        tree_bv->Branch("eSlope2", &output_bv.eSlope2);
+        tree_bv->Branch("T1", &output_bv.T1);
+        tree_bv->Branch("T2", &output_bv.T2);
+        tree_bv->Branch("dip_15402", &output_bv.dip_15402);
+        tree_bv->Branch("dip_filter", &output_bv.dip_filter);
+
     }
     switch (parser.ParseThis(parameters.runkey))
     {
+        case 1:
+            ProcessingBVSCAN();
+            break;
         case 2:
             ProcessingLED();
             break;
@@ -115,14 +139,41 @@ void Analyzer::ProcessingLED()
         if (found != std::string::npos)
         {   
             runnum = std::stoi(line.substr(4, 4));
-            if (((runnum >= parameters.runstart) && (runnum <= parameters.runstop))) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
+            if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
             {
                 found = line.find("type");
                 runtype_ = line.substr(found + 5, line.size() - (found + 4));
                 if (runtype_ == "LED")
                 {
-                    if (parameters.verbose > 0) std::cout << "Processing run " << runnum << std::endl;
-                    AnalyzeRun(runnum);
+                    if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
+                	AnalyzeRun(runnum);
+                }
+            }
+        }
+    }
+}
+
+void Analyzer::ProcessingBVSCAN()
+{
+    std::string line;
+    std::size_t found;
+    int runnum, prevrun = 0;
+    //std::cout << "HERE"<< std::endl;
+    while (std::getline(runlist_file, line))
+    {
+        found = line.find("run");
+        if (found != std::string::npos)
+        {   
+            runnum = std::stoi(line.substr(4, 4));
+            if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop) && (runnum > prevrun)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
+            {
+                found = line.find("type");
+                runtype_ = line.substr(found + 5, line.size() - (found + 4));
+                if (runtype_ == "BVSCAN")
+                {
+                    if (parameters.verbose > 0) std::cout << "Processing runs " << runnum << " " << runnum + 8 << " runtype " << runtype_ << std::endl;
+                    AnalyzeBVSCAN(runnum, runnum + 8);
+                    prevrun = runnum + 8;
                 }
             }
         }
@@ -133,7 +184,7 @@ void Analyzer::ProcessingMonitoring()
 {
     std::string line;
     std::size_t found;
-    int runnum;
+    int runnum, prevrun = 0;
 
     while (std::getline(runlist_file, line))
     {
@@ -141,148 +192,134 @@ void Analyzer::ProcessingMonitoring()
         if (found != std::string::npos)
         {   
             runnum = std::stoi(line.substr(4, 4));
-            if (((runnum >= parameters.runstart) && (runnum <= parameters.runstop))) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
+            if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop) && (runnum > prevrun)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
             {
                 found = line.find("type");
 				runtype_ = line.substr(found + 5, line.size() - (found + 4));
-				if ((runtype_ == "LED")||(runtype_ == "BVSCAN"))
-                {
+				if (runtype_ == "LED") {
                 // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
                 	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
                 	AnalyzeRun(runnum);
+                    prevrun = runnum;
 				}
+                if (runtype_ == "BVSCAN") {
+                    if (parameters.verbose > 0) std::cout << "Processing runs " << runnum << " " << runnum + 8 << " runtype " << runtype_ << std::endl;
+                    AnalyzeBVSCAN(runnum, runnum + 8);
+                    prevrun = runnum + 8;
+                }
 
             }
         }
-        // {
-            // runtype_line = line.substr(found + 5, line.size() - (found + 4));
-            // switch (RunTypes[runtype_line])
-            // {
-            //     case 0:
-            //         std::cout << "BVscan processing" << std::endl;
-            //         break;
-            //     case 1:
-            //         std::cout << "LED processing" << std::endl;
-            //         break;
-            //     case 2:
-            //         std::cout << "All batch processing" << std::endl;
-            //         break;
-            //     default:
-            //         std::cout << "Wrong runkey" << std::endl;
-            //         break;
-            // }
-
-        // }
         else std::cout << "Just skipping this ->" << line << std::endl;
     }
-        // 
-        // std::size_t found = line.find(key);
-        // if (found != std::string::npos) std::cout << std::stoi(line.substr(4, 4)) << std::endl;
-
 }
 
-    // void Analyzer::fitBVscan(int runstart, int runstop)
-    // {
-    // 	int range = runstop - runstart;
-    // 	int k = 0;
-    // 	float BVs1[range+1], eBVs1[range+1], Gains1[range+1], eGains1[range+1], BVs2[range+1], eBVs2[range+1], Gains2[range+1], eGains2[range+1], dT1[range+1], dT2[range+1];
-    // 	float T1 = 0, T2 = 0;
-    // 	//float testBV[10] = {40.50, 40.75, 41., 41.25, 41.5, 41.75, 42.0, 42.25, 42.5, 42.75};
-
-    // 	FinalData output;
-
-    // 	TString str;
-    // 	str = "BVscan_run";
-    // 	str += runstart;
-    // 	str += "_run";
-    // 	str += runstop;
-
-    //     std::string str_result = "output_results.txt";
-    //     FILE* ptr_res = fopen(str_result.c_str(), "a+");
-    //     if (ptr_res == NULL) {
-    //         printf("cannot open output file\n");
-    //         exit(0);
-    //     }
-
-    // 	//TCanvas *c1 = new TCanvas(str+"_ch1",str+"_ch1",800,600);
-
-    // 	for (int i = runstart; i <= runstop; i++)
-    // 	{	
-    // 		TString filename;
-    // 		if (i<1000) filename += "output00000";
-    //         	else filename += "output0000";
-    // 		filename += i;
-    // 		filename += ".root";		
-    // 		output = fitBVstep(filename);
-
-    // 		BVs1[k] = output.BV1;
-    // 		eBVs1[k] = 0.01;
-    // 		Gains1[k] = output.Gain1;
-    // 		eGains1[k] = output.eGain1;
-    // 		T1 += output.T1;
-    //         dT1[k] = output.T1;
-
-    // 		BVs2[k] = output.BV2;
-    // 		eBVs2[k] = 0.01;
-    // 		Gains2[k] = output.Gain2;
-    // 		eGains2[k] = output.eGain2;
-    // 		T2 += output.T2;
-    //         dT2[k] = output.T2;
-
-    // 		k++;
-    // 	}
-
-    // 	TGraphErrors *gr1 = new TGraphErrors(k,BVs1,Gains1,eBVs1,eGains1);
-    // 	TF1 *f1 = new TF1("linear_ch1", "[1]*(x-[0])");
-    // 	gr1->Fit(f1,"QM0+");
-    //     gr1->GetFunction("linear_ch1")->ResetBit(TF1::kNotDraw);
-
-
-    // 	TGraphErrors *gr2 = new TGraphErrors(k,BVs2,Gains2,eBVs2,eGains2);
-    // 	TF1 *f2 = new TF1("linear_ch2", "[1]*(x-[0])");
-    // 	gr2->Fit(f2,"QM0+");
-    //     gr2->GetFunction("linear_ch2")->ResetBit(TF1::kNotDraw);
-
-
-    // 	//std::cout << f1->GetParameter(0) << "," << f1->GetParError(0) << "," << f2->GetParameter(0) << "," << f2->GetParError(0) << "," << f1->GetParameter(1) << "," << f1->GetParError(1) << "," << f2->GetParameter(1) << "," << f2->GetParError(1) << std::endl;
-
-    // 	fprintf(ptr_res,"%d\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n",runstart,runstop,f1->GetParameter(0),f1->GetParError(0),f2->GetParameter(0),f2->GetParError(0),f1->GetParameter(1),f1->GetParError(1),f2->GetParameter(1),f2->GetParError(1), 1.0*T1/k, 1.0*T2/k, dT1[0]-dT1[range], dT2[0]-dT2[range]);
-
-    // 	delete gr1;
-    // 	delete gr2;
-    // 	delete f1;
-    // 	delete f2;
-    //     fclose(ptr_res);
-
-    // }
-
-
-long int Analyzer::TimeConverterToSec(std::string date1, std::string date2)
+void Analyzer::AnalyzeBVSCAN(int runstart, int runstop)
 {
-	int year1, mon1, day1, hour1, min1, sec1;
-	int year2, mon2, day2, hour2, min2, sec2;
-	long int t1, t2;
+    	int range = runstop - runstart;
+    	int k = 0;
+    	float BVs1[range+1], eBVs1[range+1], Gains1[range+1], eGains1[range+1], BVs2[range+1], eBVs2[range+1], Gains2[range+1], eGains2[range+1], dT1[range+1], dT2[range+1], time_stamps[range+1];
+    	float T1 = 0, T2 = 0, dip_15402 = 0, dip_filter = 0;
 
-	year1 = (std::stoi(date1.substr(20,4))-2023)*365*24*3600;
-	mon1 = dt.month[date1.substr(4,3)]*24*3600;
-	day1 = std::stoi(date1.substr(8,2))*24*3600;
-	hour1 = std::stoi(date1.substr(11,2))*3600;
-	min1 = std::stoi(date1.substr(14,2))*60;
-	sec1 = std::stoi(date1.substr(17,2));
-	t1 = sec1 + min1 + hour1 + day1 + mon1 + year1;
+    	for (int i = runstart; i <= runstop; i++)
+    	{	
+            AnalyzeRun(i);
 
-	year2 = (std::stoi(date2.substr(20,4))-2023)*365*24*3600;
-	mon2 = dt.month[date2.substr(4,3)]*24*3600;
-	day2 = std::stoi(date2.substr(8,2))*24*3600;
-	hour2 = std::stoi(date2.substr(11,2))*3600;
-	min2 = std::stoi(date2.substr(14,2))*60;
-	sec2 = std::stoi(date2.substr(17,2));
-	t2 = sec2 + min2 + hour2 + day2 + mon2 + year2;
-	//std::cout << t1.tm_year << t1.tm_mon << t1.tm_mday << t1.tm_hour << t1.tm_min << t1.tm_sec << std::endl;
-	
+    		BVs1[k] = output.BV1;
+    		eBVs1[k] = 0.01;
+    		Gains1[k] = output.Gain1;
+    		eGains1[k] = output.eGain1;
+    		T1 += output.T1;
+            dT1[k] = output.T1;
 
-	return t2-t1;//static_cast<long int>(timeSinceEpoch);
+    		BVs2[k] = output.BV2;
+    		eBVs2[k] = 0.01;
+    		Gains2[k] = output.Gain2;
+    		eGains2[k] = output.eGain2;
+    		T2 += output.T2;
+            dT2[k] = output.T2;
 
+            time_stamps[k] = output.timestamp;
+            dip_15402 += output.dip_15402;
+            dip_filter += output.dip_filter;
+
+    		k++;           
+    	}
+
+    	TGraphErrors *gr1 = new TGraphErrors(k, BVs1, Gains1, eBVs1, eGains1);
+    	TF1 *f1 = new TF1("linear_ch1", "[1]*(x-[0])", 20, 50);
+        f1->SetParameter(0, 37.8);
+        f1->SetParameter(1, 110);
+    	gr1->Fit(f1,"RQM0+");
+        gr1->GetFunction("linear_ch1")->ResetBit(TF1::kNotDraw);
+
+    	TGraphErrors *gr2 = new TGraphErrors(k, BVs2, Gains2, eBVs2, eGains2);
+    	TF1 *f2 = new TF1("linear_ch2", "[1]*(x-[0])", 20, 50);
+        f2->SetParameter(0, 37.9);
+        f2->SetParameter(1, 105);
+    	gr2->Fit(f2,"RQM0+");
+        gr2->GetFunction("linear_ch2")->ResetBit(TF1::kNotDraw);
+
+        output_bv.runstart = runstart;
+        output_bv.runstop = runstop;
+        output_bv.timestamp = time_stamps[4];
+
+        output_bv.BDV1 = f1->GetParameter(0);
+        output_bv.BDV2 = f2->GetParameter(0);
+        output_bv.eBDV1 = f1->GetParError(0);
+        output_bv.eBDV2 = f2->GetParError(0);
+        output_bv.Slope1 = f1->GetParameter(1);
+        output_bv.Slope2 = f2->GetParameter(1);
+        output_bv.eSlope1 = f1->GetParError(1);
+        output_bv.eSlope2 = f2->GetParError(1);
+        output_bv.T1 = 1.0*T1/k;
+        output_bv.T2 = 1.0*T2/k;
+        output_bv.eT1 = dT1[0]-dT1[range];
+        output_bv.eT2 = dT2[0]-dT2[range];
+
+        output_bv.dip_15402 = 1.0*dip_15402/k;
+        output_bv.dip_filter = 1.0*dip_filter/k;
+
+        if (!parameters.stdout_flag) {
+            std::string str_result = "BVSCAN_results.txt";
+            FILE* ptr_res = fopen(str_result.c_str(), "a+");
+            if (ptr_res == NULL)
+            {
+                printf("cannot open output file\n");
+                exit(0);
+            }
+            fprintf(ptr_res,"%d\t%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_bv.runstart, output_bv.runstop, output_bv.timestamp,
+                                                                                        output_bv.BDV1, output_bv.BDV2,
+                                                                                        output_bv.eBDV1, output_bv.eBDV2,
+                                                                                        output_bv.Slope1, output_bv.Slope2,
+                                                                                        output_bv.eSlope1, output_bv.eSlope2,
+                                                                                        output_bv.T1, output_bv.T2,
+                                                                                        output_bv.eT1, output_bv.eT2,
+                                                                                        output_bv.dip_15402, output_bv.dip_filter);
+            fclose(ptr_res);
+        }
+        else {
+            printf("%d\t%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_bv.runstart, output_bv.runstop, output_bv.timestamp,
+                                                                                        output_bv.BDV1, output_bv.BDV2,
+                                                                                        output_bv.eBDV1, output_bv.eBDV2,
+                                                                                        output_bv.Slope1, output_bv.Slope2,
+                                                                                        output_bv.eSlope1, output_bv.eSlope2,
+                                                                                        output_bv.T1, output_bv.T2,
+                                                                                        output_bv.eT1, output_bv.eT2,
+                                                                                        output_bv.dip_15402, output_bv.dip_filter);
+        }
+
+        if (parameters.root_tree)
+        {        
+            tree_bv->Fill();
+            // tree->Write();
+            //std::cout << output.runtype.c_str() << " " << output.timestamp << " " << output.Gain1 << std::endl;
+        }
+
+    	delete gr1;
+    	delete gr2;
+    	delete f1;
+    	delete f2;
 }
 
 void Analyzer::AnalyzeRun(int run)
@@ -302,7 +339,7 @@ void Analyzer::AnalyzeRun(int run)
 		if (parameters.verbose > 0) std::cout << "Run " << run << " file doesn't exist." << std::endl;
 		return;
 	}
-    else fitRun(file);
+    else fitRun(file, run);
 
 	if (!parameters.stdout_flag) {
 		std::string str_result = "monitoring_results.txt";
@@ -321,13 +358,14 @@ void Analyzer::AnalyzeRun(int run)
 				                                                                    output.baseline1, output.baseline2,
 				                                                                    output.rms1, output.rms2,
 				                                                                    output.rmsb1, output.rmsb2,
-				                                                                    output.current1*1e9, output.current2*1e9,
+				                                                                    output.current1, output.current2,
                                                                                     output.BV1, output.BV2,
 				                                                                    output.T1, output.T2,
 				                                                                    output.LYSO_Yield, output.LYSO_Gain,
 												                                    output.dip_15402, output.dip_filter);
 
     	fclose(ptr_res);
+
 	}
 	else {
 		printf("%d\t%s\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output.run,
@@ -338,7 +376,7 @@ void Analyzer::AnalyzeRun(int run)
 				                                                                    output.baseline1, output.baseline2,
 				                                                                    output.rms1, output.rms2,
 				                                                                    output.rmsb1, output.rmsb2,
-				                                                                    output.current1*1e9, output.current2*1e9,
+				                                                                    output.current1, output.current2,
                                                                                     output.BV1, output.BV2,
 				                                                                    output.T1, output.T2,
 				                                                                    output.LYSO_Yield, output.LYSO_Gain,
@@ -347,14 +385,30 @@ void Analyzer::AnalyzeRun(int run)
     if (parameters.root_tree)
     {        
         tree->Fill();
+        
+        std::string path = "run_" + std::to_string(run);
+        root_file->mkdir(path.c_str());
+        hcoll.h_ch1->SetDirectory(root_file->GetDirectory(path.c_str()));
+        hcoll.h_ch1->Write();
+        hcoll.h_ch2->SetDirectory(root_file->GetDirectory(path.c_str()));
+        hcoll.h_ch2->Write();
+        hcoll.h_ch3->SetDirectory(root_file->GetDirectory(path.c_str()));
+        hcoll.h_ch3->Write();
+        hcoll.h_ch1b->SetDirectory(root_file->GetDirectory(path.c_str()));
+        hcoll.h_ch1b->Write();
+        hcoll.h_ch2b->SetDirectory(root_file->GetDirectory(path.c_str()));
+        hcoll.h_ch2b->Write();
+        hcoll.h_ch3b->SetDirectory(root_file->GetDirectory(path.c_str()));
+        hcoll.h_ch3b->Write();
         // tree->Write();
         //std::cout << output.runtype.c_str() << " " << output.timestamp << " " << output.Gain1 << std::endl;
     }
+
     file->Close();
-    delete file;
+    delete file;    
 }
 
-void Analyzer::fitRun(TFile *file)
+void Analyzer::fitRun(TFile *file, int run)
 {
     // std::cout << "Analyzing file " << file->GetName() << std::endl;
     // TFile *file = TFile::Open(filename.c_str());
@@ -365,7 +419,7 @@ void Analyzer::fitRun(TFile *file)
 
     gErrorIgnoreLevel = 6001;
 
-    file->GetObject("ch1/charge_spectrum_cut_ch1",htemp1);//add cut!!!
+    file->GetObject("ch1/charge_spectrum_cut_ch1", htemp1);//add cut!!!
     file->GetObject("ch1/waveformMEAN_ch1",hmean1);
     file->GetObject("ch1/waveformRMS_ch1",hrms1);
     file->GetObject("ch1/Mean_vs_RMS_ch1",hmean_rms1);
@@ -411,8 +465,8 @@ void Analyzer::fitRun(TFile *file)
     output.BV1 = hBV1->Integral()/hBV1->GetEntries();
     output.BV2 = hBV2->Integral()/hBV2->GetEntries();
 
-    output.current1 = hI1->Integral()/hI1->GetEntries();
-    output.current2 = hI2->Integral()/hI2->GetEntries();
+    output.current1 = hI1->Integral()/hI1->GetEntries()*1e9;
+    output.current2 = hI2->Integral()/hI2->GetEntries()*1e9;
 
     output.T1 = hT1->Integral()/hT1->GetEntries();
     output.T2 = hT2->Integral()/hT2->GetEntries();
@@ -468,6 +522,27 @@ void Analyzer::fitRun(TFile *file)
 
     output.timestamp = TimeConverterToSec(parameters.data_start, sample_string);
 
+    std::string ch1_name = "run" + std::to_string(run) + "_ch1_charge_cut";
+    std::string ch2_name = "run" + std::to_string(run) + "_ch2_charge_cut";
+    std::string ch3_name = "run" + std::to_string(run) + "_ch3_charge_cut";
+    std::string ch3_name2 = "run" + std::to_string(run) + "_ch3_charge";
+    std::string ch1b_name = "run" + std::to_string(run) + "_ch1_baseline";
+    std::string ch2b_name = "run" + std::to_string(run) + "_ch2_baseline";
+
+    hcoll.h_ch1 = (TH1F*)htemp1->Clone(ch1_name.c_str());
+    hcoll.h_ch1->SetDirectory(0);
+    hcoll.h_ch2 = (TH1F*)htemp2->Clone(ch2_name.c_str());
+    hcoll.h_ch2->SetDirectory(0);
+    hcoll.h_ch3b = (TH1F*)hLb3->Clone(ch3_name.c_str());
+    hcoll.h_ch3b->SetDirectory(0);
+    hcoll.h_ch3 = (TH1F*)hL3->Clone(ch3_name2.c_str());
+    hcoll.h_ch3->SetDirectory(0);
+    hcoll.h_ch1b = (TH1F*)hB1->Clone(ch1b_name.c_str());
+    hcoll.h_ch1b->SetDirectory(0);
+    hcoll.h_ch2b = (TH1F*)hB2->Clone(ch2b_name.c_str());
+    hcoll.h_ch2b->SetDirectory(0);
+
+
     delete htemp1;
     delete htemp2;
     delete hBV1;
@@ -513,7 +588,7 @@ TF1 *Analyzer::GPFit(TH1F* hist2proc, int xlow, int xhigh){
     double binwidth;
     int ntotal, n0;
 
-    hist2proc->Rebin(20);
+    hist2proc->Rebin(10);
     //hist2proc->GetXaxis()->UnZoom();
     binwidth=hist2proc->GetBinWidth(1);
     // uncomment this for day 7
@@ -758,5 +833,33 @@ TF1 *Analyzer::DGFit(TH1F *hist, int rebin) {
 	//delete g1;
 
     return g2;
+
+}
+
+
+long int Analyzer::TimeConverterToSec(std::string date1, std::string date2)
+{
+	int year1, mon1, day1, hour1, min1, sec1;
+	int year2, mon2, day2, hour2, min2, sec2;
+	long int t1, t2;
+
+	year1 = (std::stoi(date1.substr(20,4))-2023)*365*24*3600;
+	mon1 = dt.month[date1.substr(4,3)]*24*3600;
+	day1 = std::stoi(date1.substr(8,2))*24*3600;
+	hour1 = std::stoi(date1.substr(11,2))*3600;
+	min1 = std::stoi(date1.substr(14,2))*60;
+	sec1 = std::stoi(date1.substr(17,2));
+	t1 = sec1 + min1 + hour1 + day1 + mon1 + year1;
+
+	year2 = (std::stoi(date2.substr(20,4))-2023)*365*24*3600;
+	mon2 = dt.month[date2.substr(4,3)]*24*3600;
+	day2 = std::stoi(date2.substr(8,2))*24*3600;
+	hour2 = std::stoi(date2.substr(11,2))*3600;
+	min2 = std::stoi(date2.substr(14,2))*60;
+	sec2 = std::stoi(date2.substr(17,2));
+	t2 = sec2 + min2 + hour2 + day2 + mon2 + year2;
+	//std::cout << t1.tm_year << t1.tm_mon << t1.tm_mday << t1.tm_hour << t1.tm_min << t1.tm_sec << std::endl;
+
+	return t2-t1;//static_cast<long int>(timeSinceEpoch);
 
 }

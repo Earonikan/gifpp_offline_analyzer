@@ -5,6 +5,7 @@
 #include "InputArguments.hpp"
 
 struct FinalData;
+struct BVData;
 struct GenPoisParams;
 struct Parameters;
 
@@ -14,9 +15,9 @@ class Analyzer
 {
 
 private:
-    // void fitBVscan(int num1, int num2);
-    void fitRun(TFile *file);
+    void fitRun(TFile *file, int run);
     void AnalyzeRun(int run);
+    void AnalyzeBVSCAN(int num1, int num2);
 
     TF1 *GPFit(TH1F* hist2proc, int xlow = -5000, int xhigh = 50000);
     TF1 *GFit(TH1F *hist, int rebin, int multA, int multB);
@@ -25,15 +26,19 @@ private:
     std::ifstream runlist_file;
     Parameters parameters;
     GenPoisParams fp;
+    HistoCollection hcoll;
     std::string runtype_;
     std::string pathname = "/home/qfl/online/midas_digi/daq/";
     Date dt;
     TFile *root_file;
     TTree *tree;
+    TTree *tree_bv;
     FinalData output;
+    BVData output_bv;
 
     void ProcessingMonitoring();
     void ProcessingLED();
+    void ProcessingBVSCAN();
     long int TimeConverterToSec(std::string date1, std::string date2);
 public:
     Analyzer(int argv, char *argc[]);

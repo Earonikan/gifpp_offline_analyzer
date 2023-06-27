@@ -59,6 +59,40 @@ struct FinalData
 	long int timestamp;
 };
 
+struct BVData {
+    int runstart;
+    int runstop;
+
+    long int timestamp;
+
+    float BDV1;
+    float BDV2;
+    float eBDV1;
+    float eBDV2;
+    float Slope1;
+    float Slope2;
+    float eSlope1;
+    float eSlope2;
+    float T1;
+    float T2;
+    float eT1;
+    float eT2;
+
+    float dip_15402;
+    float dip_filter;
+
+};
+
+struct HistoCollection
+{
+    TH1F *h_ch1;
+    TH1F *h_ch2;
+    TH1F *h_ch3;
+    TH1F *h_ch3b;
+    TH1F *h_ch1b;
+    TH1F *h_ch2b;
+};
+
 struct GenPoisParams {
 
     /* GP fit */
