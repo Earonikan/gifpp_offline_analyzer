@@ -57,5 +57,12 @@
         "thread": "cpp",
         "atomic": "cpp",
         "string": "cpp"
-    }
+    },
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/home/qfl/online/midas_digi/offline_analyzer_v2",
+            "binaryPath": "/home/qfl/online/midas_digi/offline_analyzer_v2/offline_analyzer",
+            "binaryArgs": []
+        }
+    ]
 }

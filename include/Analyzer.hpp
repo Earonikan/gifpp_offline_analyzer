@@ -18,6 +18,8 @@ private:
     void fitRun(TFile *file, int run);
     void AnalyzeRun(int run);
     void AnalyzeBVSCAN(int num1, int num2);
+    void AnalyzeSource(int run);
+    void AnalyzeCOSMIC(int run);
 
     TF1 *GPFit(TH1F* hist2proc, int xlow = -5000, int xhigh = 50000);
     TF1 *GFit(TH1F *hist, int rebin, int multA, int multB);
@@ -33,12 +35,15 @@ private:
     TFile *root_file;
     TTree *tree;
     TTree *tree_bv;
+    TTree *tree_ann;
     FinalData output;
     BVData output_bv;
+    ANNData output_ann;
 
-    void ProcessingMonitoring();
+    void ProcessingIrradiation();
     void ProcessingLED();
     void ProcessingBVSCAN();
+    void ProcessingAnnealing();
     long int TimeConverterToSec(std::string date1, std::string date2);
 public:
     Analyzer(int argv, char *argc[]);

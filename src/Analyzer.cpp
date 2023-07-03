@@ -111,6 +111,24 @@ void Analyzer::Processing()
         tree_bv->Branch("dip_15402", &output_bv.dip_15402);
         tree_bv->Branch("dip_filter", &output_bv.dip_filter);
 
+        //Source tree
+        tree_ann = new TTree("GIFpp_DATA_ANNEALING", "GIFpp data from annealing");
+       
+        tree_ann->Branch("run", &output_ann.run);
+        tree_ann->Branch("time_stamp", &output.timestamp);
+        tree_ann->Branch("MIP1", &output_ann.MIP1);
+        tree_ann->Branch("eMIP1", &output_ann.eMIP1); 
+        tree_ann->Branch("MIP2", &output_ann.MIP2);
+        tree_ann->Branch("eMIP2", &output_ann.eMIP2);
+        tree_ann->Branch("Gain1", &output.Gain2);
+        tree_ann->Branch("eGain1", &output.eGain2);  
+        tree_ann->Branch("Gain2", &output.Gain2);
+        tree_ann->Branch("eGain2", &output.eGain2); 
+        tree_ann->Branch("BV1", &output.BV1);
+        tree_ann->Branch("T1", &output.T1);
+        tree_ann->Branch("BV2", &output.BV2);
+        tree_ann->Branch("T2", &output.T2);
+
     }
     switch (parser.ParseThis(parameters.runkey))
     {
@@ -121,8 +139,12 @@ void Analyzer::Processing()
             ProcessingLED();
             break;
         case 3:
-            ProcessingMonitoring();
+            ProcessingIrradiation();
             break;
+        case 4:
+            ProcessingAnnealing();
+            break;
+            
     }
     //if (parameters.runkey == "ALL") ProcessingAll();
 }
@@ -180,7 +202,7 @@ void Analyzer::ProcessingBVSCAN()
     }
 }
 
-void Analyzer::ProcessingMonitoring()
+void Analyzer::ProcessingIrradiation()
 {
     std::string line;
     std::size_t found;
@@ -212,6 +234,225 @@ void Analyzer::ProcessingMonitoring()
         }
         else std::cout << "Just skipping this ->" << line << std::endl;
     }
+}
+
+void Analyzer::ProcessingAnnealing()
+{
+    std::string line;
+    std::size_t found;
+    int runnum, prevrun = 0;
+
+    while (std::getline(runlist_file, line))
+    {
+        found = line.find("run");
+        if (found != std::string::npos)
+        {   
+            runnum = std::stoi(line.substr(4, 4));
+            if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop) && (runnum > prevrun)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
+            {
+                found = line.find("type");
+				runtype_ = line.substr(found + 5, line.size() - (found + 4));
+				if (runtype_ == "LED") {
+                // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
+                	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
+                	AnalyzeRun(runnum);
+                    prevrun = runnum;
+				}
+                if (runtype_ == "SOURCE") {
+                // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
+                	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
+                	AnalyzeSource(runnum);
+                    prevrun = runnum;
+				}
+                if (runtype_ == "BVSCAN") {
+                    if (parameters.verbose > 0) std::cout << "Processing runs " << runnum << " " << runnum + 8 << " runtype " << runtype_ << std::endl;
+                    AnalyzeBVSCAN(runnum, runnum + 8);
+                    prevrun = runnum + 8;
+                }
+                if (runtype_ == "COSMIC") {
+                // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
+                	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
+                	AnalyzeCOSMIC(runnum);
+                    prevrun = runnum;
+				}
+            }
+        }
+        else std::cout << "Just skipping this ->" << line << std::endl;
+    }
+}
+
+void Analyzer::AnalyzeSource(int run) {
+
+    output.run = run;
+    output.runtype = runtype_;
+	std::string filename;
+	filename +=	pathname;
+	if (run<1000) filename += "output00000";
+	else filename += "output0000";
+	filename +=  std::to_string(run);
+	filename += ".root";
+
+	TFile *file = TFile::Open(filename.c_str());
+    if (!file)
+	{
+		if (parameters.verbose > 0) std::cout << "Run " << run << " file doesn't exist." << std::endl;
+		return;
+	}
+
+	TH1F *htemp;
+	file->GetObject("ch2/charge_spectrum_ch2", htemp);
+
+	float peak;
+	htemp->Rebin(100);
+	TSpectrum s(2);
+	s.Search(htemp, 3, "goff", 0.001);
+	double *_xpeaks = s.GetPositionX();
+	if (_xpeaks[0] > _xpeaks[1]) peak = _xpeaks[0];
+	else peak = _xpeaks[1];
+
+	TF1 *g = new TF1("MIP", "gaus", peak-peak/3, peak+peak/5);
+	g->SetLineColor(kCyan);
+	g->SetParameter(1, peak);
+
+	htemp->Fit(g,"RQ0+");
+	htemp->GetFunction("MIP")->ResetBit(TF1::kNotDraw);
+    output_ann.MIP2 = g->GetParameter(1);
+    output_ann.eMIP2 = g->GetParError(1);
+    output_ann.run = run;
+    
+    if (!parameters.stdout_flag) {
+        std::string str_result = "MIP_results.txt";
+        FILE* ptr_res = fopen(str_result.c_str(), "a+");
+        if (ptr_res == NULL)
+        {
+            printf("cannot open output file\n");
+                exit(0);
+        }
+        fprintf(ptr_res,"%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run, output.timestamp,
+                                                                        output_ann.MIP2, output_ann.eMIP2,
+                                                                        output.Gain2, output.eGain2,
+                                                                        output.mean2, output.baseline2,
+                                                                        output.rms2, output.rmsb2,
+                                                                        output.current2, output.BV2,
+                                                                        output.T2);
+        fclose(ptr_res);
+    }
+    else {
+        printf("%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run, output.timestamp,
+                                                                        output_ann.MIP2, output_ann.eMIP2,
+                                                                        output.Gain2, output.eGain2,
+                                                                        output.mean2, output.baseline2,
+                                                                        output.rms2, output.rmsb2,
+                                                                        output.current2, output.BV2,
+                                                                        output.T2);
+    }
+
+    if (parameters.root_tree)
+    {        
+        tree_ann->Fill();
+    }
+	
+    delete htemp;
+    delete g;
+    file->Close();
+    delete file;
+
+}
+
+void Analyzer::AnalyzeCOSMIC(int run) {
+
+    output_ann.run = run;
+    output.runtype = runtype_;
+	std::string filename;
+	filename +=	pathname;
+	if (run<1000) filename += "output00000";
+	else filename += "output0000";
+	filename +=  std::to_string(run);
+	filename += ".root";
+
+	TFile *file = TFile::Open(filename.c_str());
+    if (!file)
+	{
+		if (parameters.verbose > 0) std::cout << "Run " << run << " file doesn't exist." << std::endl;
+		return;
+	}
+
+	TH1F *htemp1, *htemp2;
+	file->GetObject("ch1/charge_spectrum_ch1", htemp1);
+    file->GetObject("ch2/charge_spectrum_ch2", htemp2);
+
+	float peak;
+	htemp1->Rebin(500);
+	TSpectrum s(2);
+	s.Search(htemp1, 3, "goff", 0.001);
+	double *_xpeaks = s.GetPositionX();
+	if (_xpeaks[0] > _xpeaks[1]) peak = _xpeaks[0];
+	else peak = _xpeaks[1];
+
+	TF1 *g1 = new TF1("MIP1", "gaus", peak-peak/3, peak+peak/5);
+	g1->SetLineColor(kCyan);
+	g1->SetParameter(1, peak);
+
+	htemp1->Fit(g1,"RQ0+");
+	htemp1->GetFunction("MIP1")->ResetBit(TF1::kNotDraw);
+    output_ann.MIP1 = g1->GetParameter(1);
+    output_ann.eMIP1 = g1->GetParError(1);
+
+    htemp2->Rebin(500);
+	s.Search(htemp2, 3, "goff", 0.001);
+	_xpeaks = s.GetPositionX();
+	if (_xpeaks[0] > _xpeaks[1]) peak = _xpeaks[0];
+	else peak = _xpeaks[1];
+
+	TF1 *g2 = new TF1("MIP2", "gaus", peak-peak/3, peak+peak/5);
+	g2->SetLineColor(kCyan);
+	g2->SetParameter(1, peak);
+
+	htemp2->Fit(g2,"RQ0+");
+	htemp2->GetFunction("MIP2")->ResetBit(TF1::kNotDraw);
+    output_ann.MIP2 = g2->GetParameter(1);
+    output_ann.eMIP2 = g2->GetParError(1);
+
+    
+    if (!parameters.stdout_flag) {
+        std::string str_result = "MIP_results.txt";
+        FILE* ptr_res = fopen(str_result.c_str(), "a+");
+        if (ptr_res == NULL)
+        {
+            printf("cannot open output file\n");
+                exit(0);
+        }
+        fprintf(ptr_res,"%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run, output.timestamp,
+                                                                                    output_ann.MIP1, output_ann.eMIP1,
+                                                                                    output_ann.MIP2, output_ann.eMIP2,
+                                                                                    output.Gain1, output.eGain1,
+                                                                                    output.Gain2, output.eGain2,
+                                                                                    output.BV1, output.T1,
+                                                                                    output.BV2, output.T2);
+        fclose(ptr_res);
+    }
+    else {
+        printf("%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run, output.timestamp,
+                                                                            output_ann.MIP1, output_ann.eMIP1,
+                                                                            output_ann.MIP2, output_ann.eMIP2,
+                                                                            output.Gain1, output.eGain1,
+                                                                            output.Gain2, output.eGain2,
+                                                                            output.BV1, output.T1,
+                                                                            output.BV2, output.T2);
+    }
+
+    if (parameters.root_tree)
+    {        
+        tree_ann->Fill();
+    }
+	
+    delete htemp1;
+    delete g1;
+    delete htemp2;
+    delete g2;
+    file->Close();
+    delete file;
+
 }
 
 void Analyzer::AnalyzeBVSCAN(int runstart, int runstop)
@@ -312,8 +553,6 @@ void Analyzer::AnalyzeBVSCAN(int runstart, int runstop)
         if (parameters.root_tree)
         {        
             tree_bv->Fill();
-            // tree->Write();
-            //std::cout << output.runtype.c_str() << " " << output.timestamp << " " << output.Gain1 << std::endl;
         }
 
     	delete gr1;
@@ -342,7 +581,7 @@ void Analyzer::AnalyzeRun(int run)
     else fitRun(file, run);
 
 	if (!parameters.stdout_flag) {
-		std::string str_result = "monitoring_results.txt";
+		std::string str_result = "irradiation_results.txt";
 		FILE* ptr_res = fopen(str_result.c_str(), "a+");
 		if (ptr_res == NULL)
 		{
@@ -392,14 +631,16 @@ void Analyzer::AnalyzeRun(int run)
         hcoll.h_ch1->Write();
         hcoll.h_ch2->SetDirectory(root_file->GetDirectory(path.c_str()));
         hcoll.h_ch2->Write();
-        hcoll.h_ch3->SetDirectory(root_file->GetDirectory(path.c_str()));
-        hcoll.h_ch3->Write();
         hcoll.h_ch1b->SetDirectory(root_file->GetDirectory(path.c_str()));
         hcoll.h_ch1b->Write();
         hcoll.h_ch2b->SetDirectory(root_file->GetDirectory(path.c_str()));
         hcoll.h_ch2b->Write();
-        hcoll.h_ch3b->SetDirectory(root_file->GetDirectory(path.c_str()));
-        hcoll.h_ch3b->Write();
+        if (parameters.runkey != "ANNEALING") {
+            hcoll.h_ch3->SetDirectory(root_file->GetDirectory(path.c_str()));
+            hcoll.h_ch3->Write();
+            hcoll.h_ch3b->SetDirectory(root_file->GetDirectory(path.c_str()));
+            hcoll.h_ch3b->Write();
+        }
         // tree->Write();
         //std::cout << output.runtype.c_str() << " " << output.timestamp << " " << output.Gain1 << std::endl;
     }
@@ -441,19 +682,27 @@ void Analyzer::fitRun(TFile *file, int run)
     TF1 *ch2 = GPFit(htemp2);
 
     file->GetObject("ch3/charge_spectrum_ch3",hL3);
-    TF1 *ch3 = GFit(hL3, 256, 1, 3);
-    output.LYSO_Yield = ch3->GetParameter(1);
+    if (hL3) {
+        TF1 *ch3 = GFit(hL3, 256, 1, 3);
+        output.LYSO_Yield = ch3->GetParameter(1);
+        delete ch3;
+    }
+    else {
+        output.LYSO_Yield = 0;
+    }
 
     file->GetObject("ch3/charge_spectrum_cut_ch3",hLb3);
 	
-    if (hLb3->GetEntries()!=0) {
-        TF1 *ch3b = DGFit(hLb3, 4);
-        output.LYSO_Gain = ch3b->GetParameter(1) - ch3b->GetParameter(0);
-		delete ch3b;
+    if (hLb3) {
+        if (hLb3->GetEntries()!=0) {
+            TF1 *ch3b = DGFit(hLb3, 4);
+            output.LYSO_Gain = ch3b->GetParameter(1) - ch3b->GetParameter(0);
+            delete ch3b;
+        }
+        else {
+            output.LYSO_Gain = 1;
+        } 
     }
-    else {
-        output.LYSO_Gain = 1;
-    }  
 
     output.Gain1 = ch1->GetParameter(1);
     output.eGain1 = ch1->GetParError(1);
@@ -533,10 +782,14 @@ void Analyzer::fitRun(TFile *file, int run)
     hcoll.h_ch1->SetDirectory(0);
     hcoll.h_ch2 = (TH1F*)htemp2->Clone(ch2_name.c_str());
     hcoll.h_ch2->SetDirectory(0);
-    hcoll.h_ch3b = (TH1F*)hLb3->Clone(ch3_name.c_str());
-    hcoll.h_ch3b->SetDirectory(0);
-    hcoll.h_ch3 = (TH1F*)hL3->Clone(ch3_name2.c_str());
-    hcoll.h_ch3->SetDirectory(0);
+    if (hLb3) {
+        hcoll.h_ch3b = (TH1F*)hLb3->Clone(ch3_name.c_str());
+        hcoll.h_ch3b->SetDirectory(0);
+    }
+    if (hLb3) {
+        hcoll.h_ch3 = (TH1F*)hL3->Clone(ch3_name2.c_str());
+        hcoll.h_ch3->SetDirectory(0);
+    }
     hcoll.h_ch1b = (TH1F*)hB1->Clone(ch1b_name.c_str());
     hcoll.h_ch1b->SetDirectory(0);
     hcoll.h_ch2b = (TH1F*)hB2->Clone(ch2b_name.c_str());
@@ -557,7 +810,6 @@ void Analyzer::fitRun(TFile *file, int run)
     delete hT2;
     delete ch1;
     delete ch2;
-	delete ch3;
     delete hmean_rms1;
     delete hmean_rms2;
     delete hL3;
@@ -571,12 +823,6 @@ void Analyzer::fitRun(TFile *file, int run)
 	delete hDipF;
     delete tr;
 	//delete cstr;
-
-    // file->Close();
-
-    // delete file;
-
-    // return output;
 
 }
 
