@@ -112,16 +112,17 @@ void Analyzer::Processing()
         tree_bv->Branch("dip_filter", &output_bv.dip_filter);
 
         //Source tree
-        tree_ann = new TTree("GIFpp_DATA_ANNEALING", "GIFpp data from annealing");
+        tree_ann = new TTree("GIFpp_DATA_MIPs", "GIFpp data from MIPs");
        
         tree_ann->Branch("run", &output_ann.run);
+        tree_ann->Branch("runtype", &output.runtype);
         tree_ann->Branch("time_stamp", &output.timestamp);
         tree_ann->Branch("MIP1", &output_ann.MIP1);
         tree_ann->Branch("eMIP1", &output_ann.eMIP1); 
         tree_ann->Branch("MIP2", &output_ann.MIP2);
         tree_ann->Branch("eMIP2", &output_ann.eMIP2);
-        tree_ann->Branch("Gain1", &output.Gain2);
-        tree_ann->Branch("eGain1", &output.eGain2);  
+        tree_ann->Branch("Gain1", &output.Gain1);
+        tree_ann->Branch("eGain1", &output.eGain1);  
         tree_ann->Branch("Gain2", &output.Gain2);
         tree_ann->Branch("eGain2", &output.eGain2); 
         tree_ann->Branch("BV1", &output.BV1);
@@ -139,10 +140,10 @@ void Analyzer::Processing()
             ProcessingLED();
             break;
         case 3:
-            ProcessingIrradiation();
+            ProcessingMonitoring();
             break;
         case 4:
-            ProcessingAnnealing();
+            ProcessingMIPs();
             break;
             
     }
@@ -202,7 +203,7 @@ void Analyzer::ProcessingBVSCAN()
     }
 }
 
-void Analyzer::ProcessingIrradiation()
+void Analyzer::ProcessingMonitoring()
 {
     std::string line;
     std::size_t found;
@@ -236,11 +237,11 @@ void Analyzer::ProcessingIrradiation()
     }
 }
 
-void Analyzer::ProcessingAnnealing()
+void Analyzer::ProcessingMIPs()
 {
     std::string line;
     std::size_t found;
-    int runnum, prevrun = 0;
+    int runnum, prevrun = 0, prev_cosmic_rum = 0;
 
     while (std::getline(runlist_file, line))
     {
@@ -269,11 +270,12 @@ void Analyzer::ProcessingAnnealing()
                     AnalyzeBVSCAN(runnum, runnum + 8);
                     prevrun = runnum + 8;
                 }
-                if (runtype_ == "COSMIC") {
+                if ((runtype_ == "COSMIC")&&(runnum > prev_cosmic_rum)) {
                 // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
                 	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
                 	AnalyzeCOSMIC(runnum);
                     prevrun = runnum;
+                    prev_cosmic_rum = runnum + 33;
 				}
             }
         }
@@ -282,84 +284,6 @@ void Analyzer::ProcessingAnnealing()
 }
 
 void Analyzer::AnalyzeSource(int run) {
-
-    output.run = run;
-    output.runtype = runtype_;
-	std::string filename;
-	filename +=	pathname;
-	if (run<1000) filename += "output00000";
-	else filename += "output0000";
-	filename +=  std::to_string(run);
-	filename += ".root";
-
-	TFile *file = TFile::Open(filename.c_str());
-    if (!file)
-	{
-		if (parameters.verbose > 0) std::cout << "Run " << run << " file doesn't exist." << std::endl;
-		return;
-	}
-
-	TH1F *htemp;
-	file->GetObject("ch2/charge_spectrum_ch2", htemp);
-
-	float peak;
-	htemp->Rebin(100);
-	TSpectrum s(2);
-	s.Search(htemp, 3, "goff", 0.001);
-	double *_xpeaks = s.GetPositionX();
-	if (_xpeaks[0] > _xpeaks[1]) peak = _xpeaks[0];
-	else peak = _xpeaks[1];
-
-	TF1 *g = new TF1("MIP", "gaus", peak-peak/3, peak+peak/5);
-	g->SetLineColor(kCyan);
-	g->SetParameter(1, peak);
-
-	htemp->Fit(g,"RQ0+");
-	htemp->GetFunction("MIP")->ResetBit(TF1::kNotDraw);
-    output_ann.MIP2 = g->GetParameter(1);
-    output_ann.eMIP2 = g->GetParError(1);
-    output_ann.run = run;
-    
-    if (!parameters.stdout_flag) {
-        std::string str_result = "MIP_results.txt";
-        FILE* ptr_res = fopen(str_result.c_str(), "a+");
-        if (ptr_res == NULL)
-        {
-            printf("cannot open output file\n");
-                exit(0);
-        }
-        fprintf(ptr_res,"%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run, output.timestamp,
-                                                                        output_ann.MIP2, output_ann.eMIP2,
-                                                                        output.Gain2, output.eGain2,
-                                                                        output.mean2, output.baseline2,
-                                                                        output.rms2, output.rmsb2,
-                                                                        output.current2, output.BV2,
-                                                                        output.T2);
-        fclose(ptr_res);
-    }
-    else {
-        printf("%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run, output.timestamp,
-                                                                        output_ann.MIP2, output_ann.eMIP2,
-                                                                        output.Gain2, output.eGain2,
-                                                                        output.mean2, output.baseline2,
-                                                                        output.rms2, output.rmsb2,
-                                                                        output.current2, output.BV2,
-                                                                        output.T2);
-    }
-
-    if (parameters.root_tree)
-    {        
-        tree_ann->Fill();
-    }
-	
-    delete htemp;
-    delete g;
-    file->Close();
-    delete file;
-
-}
-
-void Analyzer::AnalyzeCOSMIC(int run) {
 
     output_ann.run = run;
     output.runtype = runtype_;
@@ -382,15 +306,15 @@ void Analyzer::AnalyzeCOSMIC(int run) {
     file->GetObject("ch2/charge_spectrum_ch2", htemp2);
 
 	float peak;
-	htemp1->Rebin(500);
+	htemp1->Rebin(200);
 	TSpectrum s(2);
 	s.Search(htemp1, 3, "goff", 0.001);
 	double *_xpeaks = s.GetPositionX();
 	if (_xpeaks[0] > _xpeaks[1]) peak = _xpeaks[0];
 	else peak = _xpeaks[1];
 
-	TF1 *g1 = new TF1("MIP1", "gaus", peak-peak/3, peak+peak/5);
-	g1->SetLineColor(kCyan);
+	TF1 *g1 = new TF1("MIP1", "gaus", peak-peak/4, peak+peak/5);
+	//g1->SetLineColor(kCyan);
 	g1->SetParameter(1, peak);
 
 	htemp1->Fit(g1,"RQ0+");
@@ -398,14 +322,14 @@ void Analyzer::AnalyzeCOSMIC(int run) {
     output_ann.MIP1 = g1->GetParameter(1);
     output_ann.eMIP1 = g1->GetParError(1);
 
-    htemp2->Rebin(500);
+    htemp2->Rebin(200);
 	s.Search(htemp2, 3, "goff", 0.001);
 	_xpeaks = s.GetPositionX();
 	if (_xpeaks[0] > _xpeaks[1]) peak = _xpeaks[0];
 	else peak = _xpeaks[1];
 
-	TF1 *g2 = new TF1("MIP2", "gaus", peak-peak/3, peak+peak/5);
-	g2->SetLineColor(kCyan);
+	TF1 *g2 = new TF1("MIP2", "gaus", peak-peak/4, peak+peak/5);
+	//g2->SetLineColor(kCyan);
 	g2->SetParameter(1, peak);
 
 	htemp2->Fit(g2,"RQ0+");
@@ -422,7 +346,8 @@ void Analyzer::AnalyzeCOSMIC(int run) {
             printf("cannot open output file\n");
                 exit(0);
         }
-        fprintf(ptr_res,"%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run, output.timestamp,
+        fprintf(ptr_res,"%d\t%ld\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run,
+                                                                                    output.timestamp, output.runtype.c_str(),
                                                                                     output_ann.MIP1, output_ann.eMIP1,
                                                                                     output_ann.MIP2, output_ann.eMIP2,
                                                                                     output.Gain1, output.eGain1,
@@ -432,7 +357,8 @@ void Analyzer::AnalyzeCOSMIC(int run) {
         fclose(ptr_res);
     }
     else {
-        printf("%d\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run, output.timestamp,
+        printf("%d\t%ld\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run,
+                                                                            output.timestamp, output.runtype.c_str(),
                                                                             output_ann.MIP1, output_ann.eMIP1,
                                                                             output_ann.MIP2, output_ann.eMIP2,
                                                                             output.Gain1, output.eGain1,
@@ -453,6 +379,113 @@ void Analyzer::AnalyzeCOSMIC(int run) {
     file->Close();
     delete file;
 
+}
+
+void Analyzer::AnalyzeCOSMIC(int run) {
+
+    output_ann.run = run;
+    output.runtype = runtype_;
+	std::string filename;
+	
+	TFile *file;
+	TH1F *htemp1, *htemp2;
+	TH1F *h1 = new TH1F("h1","h1", 220000, -20000, 2000000);
+	TH1F *h2 = new TH1F("h2","h2", 220000, -20000, 2000000);
+
+    for (int i = run; i < run + 34; i = i + 11) {
+
+        filename = pathname;
+        if (run<1000) filename += "output00000";
+        else filename += "output0000";
+        filename +=  std::to_string(i);
+        filename += ".root";
+
+        file = TFile::Open(filename.c_str());
+        if (!file)
+        {
+            if (parameters.verbose > 0) std::cout << "Run " << i << " file doesn't exist." << std::endl;
+            return;
+        }
+
+        file->GetObject("ch1/charge_spectrum_ch1", htemp1);
+        file->GetObject("ch2/charge_spectrum_ch2", htemp2);
+
+        h1->Add(htemp1);
+        h2->Add(htemp2);
+
+        file->Close();
+        delete file;
+
+    }
+    
+	float peak;
+	TSpectrum s(2);
+    double *_xpeaks;
+
+    h1->Rebin(200);
+	s.Search(h1, 3, "goff", 0.001);
+	_xpeaks = s.GetPositionX();
+	if (_xpeaks[0] > _xpeaks[1]) peak = _xpeaks[0];
+	else peak = _xpeaks[1];
+	TF1 *g1 = new TF1("MIP1", "gaus", peak-peak/3, peak+peak/4);
+	//g1->SetLineColor(kCyan);
+	g1->SetParameter(1, peak);
+	h1->Fit(g1,"RQ0+");
+	h1->GetFunction("MIP1")->ResetBit(TF1::kNotDraw);
+    output_ann.MIP1 = g1->GetParameter(1);
+    output_ann.eMIP1 = g1->GetParError(1);
+
+    h2->Rebin(200);
+	s.Search(h2, 3, "goff", 0.001);
+	_xpeaks = s.GetPositionX();
+	if (_xpeaks[0] > _xpeaks[1]) peak = _xpeaks[0];
+	else peak = _xpeaks[1];
+	TF1 *g2 = new TF1("MIP2", "gaus", peak-peak/3, peak+peak/4);
+	//g2->SetLineColor(kCyan);
+	g2->SetParameter(1, peak);
+	h2->Fit(g2,"RQ0+");
+	h2->GetFunction("MIP2")->ResetBit(TF1::kNotDraw);
+    output_ann.MIP2 = g2->GetParameter(1);
+    output_ann.eMIP2 = g2->GetParError(1);
+    
+    if (!parameters.stdout_flag) {
+        std::string str_result = "MIP_results.txt";
+        FILE* ptr_res = fopen(str_result.c_str(), "a+");
+        if (ptr_res == NULL)
+        {
+            printf("cannot open output file\n");
+                exit(0);
+        }
+        fprintf(ptr_res,"%d\t%ld\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run,
+                                                                                    output.timestamp, output.runtype.c_str(),
+                                                                                    output_ann.MIP1, output_ann.eMIP1,
+                                                                                    output_ann.MIP2, output_ann.eMIP2,
+                                                                                    output.Gain1, output.eGain1,
+                                                                                    output.Gain2, output.eGain2,
+                                                                                    output.BV1, output.T1,
+                                                                                    output.BV2, output.T2);
+        fclose(ptr_res);
+    }
+    else {
+        printf("%d\t%ld\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output_ann.run,
+                                                                            output.timestamp, output.runtype.c_str(),
+                                                                            output_ann.MIP1, output_ann.eMIP1,
+                                                                            output_ann.MIP2, output_ann.eMIP2,
+                                                                            output.Gain1, output.eGain1,
+                                                                            output.Gain2, output.eGain2,
+                                                                            output.BV1, output.T1,
+                                                                            output.BV2, output.T2);
+    }
+
+    if (parameters.root_tree)
+    {        
+        tree_ann->Fill();
+    }
+    
+    delete g1;
+    delete g2;
+    delete h1;
+    delete h2;
 }
 
 void Analyzer::AnalyzeBVSCAN(int runstart, int runstop)
@@ -581,7 +614,7 @@ void Analyzer::AnalyzeRun(int run)
     else fitRun(file, run);
 
 	if (!parameters.stdout_flag) {
-		std::string str_result = "irradiation_results.txt";
+		std::string str_result = "monitoring_results.txt";
 		FILE* ptr_res = fopen(str_result.c_str(), "a+");
 		if (ptr_res == NULL)
 		{
@@ -631,11 +664,11 @@ void Analyzer::AnalyzeRun(int run)
         hcoll.h_ch1->Write();
         hcoll.h_ch2->SetDirectory(root_file->GetDirectory(path.c_str()));
         hcoll.h_ch2->Write();
-        hcoll.h_ch1b->SetDirectory(root_file->GetDirectory(path.c_str()));
-        hcoll.h_ch1b->Write();
-        hcoll.h_ch2b->SetDirectory(root_file->GetDirectory(path.c_str()));
-        hcoll.h_ch2b->Write();
-        if (parameters.runkey != "ANNEALING") {
+        if (parameters.runkey != "MIP") {
+            hcoll.h_ch1b->SetDirectory(root_file->GetDirectory(path.c_str()));
+            hcoll.h_ch1b->Write();
+            hcoll.h_ch2b->SetDirectory(root_file->GetDirectory(path.c_str()));
+            hcoll.h_ch2b->Write();
             hcoll.h_ch3->SetDirectory(root_file->GetDirectory(path.c_str()));
             hcoll.h_ch3->Write();
             hcoll.h_ch3b->SetDirectory(root_file->GetDirectory(path.c_str()));
@@ -682,26 +715,58 @@ void Analyzer::fitRun(TFile *file, int run)
     TF1 *ch2 = GPFit(htemp2);
 
     file->GetObject("ch3/charge_spectrum_ch3",hL3);
-    if (hL3) {
-        TF1 *ch3 = GFit(hL3, 256, 1, 3);
-        output.LYSO_Yield = ch3->GetParameter(1);
-        delete ch3;
-    }
-    else {
-        output.LYSO_Yield = 0;
-    }
-
     file->GetObject("ch3/charge_spectrum_cut_ch3",hLb3);
-	
-    if (hLb3) {
-        if (hLb3->GetEntries()!=0) {
+
+    if (parameters.runkey != "MIP") {
+        
+        if (hL3&&(hL3->GetEntries()!=0)) {
+            TF1 *ch3 = GFit(hL3, 256, 1, 3);
+            output.LYSO_Yield = ch3->GetParameter(1);
+            delete ch3;
+        }
+        else {
+            output.LYSO_Yield = 0;
+        }
+        
+        if (hLb3&&(hLb3->GetEntries()!=0)) {
             TF1 *ch3b = DGFit(hLb3, 4);
             output.LYSO_Gain = ch3b->GetParameter(1) - ch3b->GetParameter(0);
             delete ch3b;
         }
         else {
-            output.LYSO_Gain = 1;
-        } 
+                output.LYSO_Gain = 1;
+        }
+
+        //hmean_rms1->GetXaxis()->SetRangeUser(-100,10);
+        //output.baseline1 = hmean_rms1->GetMean(2);
+        //   output.rmsb1 = hmean_rms1->GetRMS(2);
+        if (hB1&&(hB1->GetEntries()!=0)) {
+            TF1 *ch1b = GFit(hB1, 1, 3, 1);
+            //output.baseline1 = hB1->GetXaxis()->GetBinCenter(hB1->GetMaximumBin());
+            output.baseline1 = ch1b->GetParameter(1);
+            output.rmsb1 = hB1->GetRMS();
+            delete ch1b;
+        }
+        else {
+            output.baseline1 = 0;
+            output.rmsb1 = 0;
+        }
+
+        //hmean_rms2->GetXaxis()->SetRangeUser(-100,10);
+        //output.baseline2 = hmean_rms2->GetMean(2);
+        //output.rmsb2 = hmean_rms2->GetRMS(2);
+        //output.baseline2 = hB2->GetMean();
+        if (hB2&&(hB2->GetEntries()!=0)) {
+            TF1 *ch2b = GFit(hB2, 1, 3, 1);
+            //output.baseline2 = hB2->GetXaxis()->GetBinCenter(hB2->GetMaximumBin());
+            output.baseline2 = ch2b->GetParameter(1);
+            output.rmsb2 = hB2->GetRMS();
+            delete ch2b;
+        }
+        else {
+            output.baseline2 = 0;
+            output.rmsb2 = 0;
+        }
     }
 
     output.Gain1 = ch1->GetParameter(1);
@@ -709,7 +774,6 @@ void Analyzer::fitRun(TFile *file, int run)
 
     output.Gain2 = ch2->GetParameter(1);
     output.eGain2 = ch2->GetParError(1);
-
 
     output.BV1 = hBV1->Integral()/hBV1->GetEntries();
     output.BV2 = hBV2->Integral()/hBV2->GetEntries();
@@ -720,30 +784,11 @@ void Analyzer::fitRun(TFile *file, int run)
     output.T1 = hT1->Integral()/hT1->GetEntries();
     output.T2 = hT2->Integral()/hT2->GetEntries();
 
-    //cout << output.current1 << "\t" << output.current2 << endl;
-
     output.mean1 = hmean1->GetSum()/hmean1->GetEntries();
     output.mean2 = hmean2->GetSum()/hmean2->GetEntries();
 
     output.rms1 = hrms1->GetSum()/hrms1->GetEntries();
     output.rms2 = hrms2->GetSum()/hrms2->GetEntries();
-
-    //hmean_rms1->GetXaxis()->SetRangeUser(-100,10);
-    //output.baseline1 = hmean_rms1->GetMean(2);
-    //   output.rmsb1 = hmean_rms1->GetRMS(2);
-    TF1 *ch1b = GFit(hB1, 1, 3, 1);
-    //output.baseline1 = hB1->GetXaxis()->GetBinCenter(hB1->GetMaximumBin());
-    output.baseline1 = ch1b->GetParameter(1);
-    output.rmsb1 = hB1->GetRMS();
-
-    //hmean_rms2->GetXaxis()->SetRangeUser(-100,10);
-    //output.baseline2 = hmean_rms2->GetMean(2);
-    //output.rmsb2 = hmean_rms2->GetRMS(2);
-    //output.baseline2 = hB2->GetMean();
-    TF1 *ch2b = GFit(hB2, 1, 3, 1);
-    //output.baseline2 = hB2->GetXaxis()->GetBinCenter(hB2->GetMaximumBin());
-    output.baseline2 = ch2b->GetParameter(1);
-    output.rmsb2 = hB2->GetRMS();
 
 	file->GetObject("DIP/DIP_0",hDip1);
 	file->GetObject("DIP/DIP_1",hDip2);
@@ -752,15 +797,21 @@ void Analyzer::fitRun(TFile *file, int run)
 	output.dip_15402 = hDip1->Integral()/hDip1->GetEntries();
 	output.dip_15403 = hDip2->Integral()/hDip2->GetEntries();
 
-    float bsum = 0;
-    int nsum = 0, nlast = hDipF->FindLastBinAbove(0);
-    for (int i = 0; i < nlast; ++i) {
-        if (hDipF->GetBinContent(i) > 0) {
-            bsum += hDipF->GetBinContent(i);
-            nsum++;
+    if (hDipF) {
+        float bsum = 0;
+        int nsum = 0, nlast = hDipF->FindLastBinAbove(0);
+        for (int i = 0; i < nlast; ++i) {
+            if (hDipF->GetBinContent(i) > 0) {
+                bsum += hDipF->GetBinContent(i);
+                nsum++;
+            }
         }
+        output.dip_filter = 1.0*bsum/nsum;
     }
-	output.dip_filter = 1.0*bsum/nsum;
+    else
+    {
+        output.dip_filter = 0;
+    }
 
 	file->GetObject("Run_Data", tr);
 	TString *cstr;
@@ -790,11 +841,14 @@ void Analyzer::fitRun(TFile *file, int run)
         hcoll.h_ch3 = (TH1F*)hL3->Clone(ch3_name2.c_str());
         hcoll.h_ch3->SetDirectory(0);
     }
-    hcoll.h_ch1b = (TH1F*)hB1->Clone(ch1b_name.c_str());
-    hcoll.h_ch1b->SetDirectory(0);
-    hcoll.h_ch2b = (TH1F*)hB2->Clone(ch2b_name.c_str());
-    hcoll.h_ch2b->SetDirectory(0);
-
+    if (hB1) {
+        hcoll.h_ch1b = (TH1F*)hB1->Clone(ch1b_name.c_str());
+        hcoll.h_ch1b->SetDirectory(0);
+    }
+    if (hB2) {
+        hcoll.h_ch2b = (TH1F*)hB2->Clone(ch2b_name.c_str());
+        hcoll.h_ch2b->SetDirectory(0);
+    }
 
     delete htemp1;
     delete htemp2;
@@ -812,10 +866,6 @@ void Analyzer::fitRun(TFile *file, int run)
     delete ch2;
     delete hmean_rms1;
     delete hmean_rms2;
-    delete hL3;
-    delete hLb3;
-	delete ch1b;
-	delete ch2b;
 	delete hB2;
 	delete hB1;
 	delete hDip1;
@@ -966,9 +1016,9 @@ TF1 *Analyzer::GFit(TH1F *hist, int rebin, int multA, int multB) {
         std::cout << std::endl;
     }
 
-    TF1 *G_func = new TF1("1 fit","gaus",lower_bound, upper_bound);
+    TF1 *G_func = new TF1("1fit","gaus", lower_bound, upper_bound);
     hist->Fit(G_func,"RQ0+");
-    hist->GetFunction("1 fit")->ResetBit(TF1::kNotDraw);
+    hist->GetFunction("1fit")->ResetBit(TF1::kNotDraw);
     G_func->GetParameters(gparameters);
 
     double Chi2 = G_func->GetChisquare();
@@ -982,12 +1032,13 @@ TF1 *Analyzer::GFit(TH1F *hist, int rebin, int multA, int multB) {
         std::cout << std::endl;
     }
 
-    TF1 *LG_func = new TF1("2 fit","gaus",lower_bound, upper_bound);
+    TF1 *LG_func = new TF1("2fit","gaus", lower_bound, upper_bound);
     LG_func->SetParameters(gparameters);
     LG_func->SetLineColor(kGreen);
-    hist->Fit(LG_func,"RQ0+");
-    hist->GetFunction("2 fit")->ResetBit(TF1::kNotDraw);
+    hist->Fit(LG_func, "RQ0+");
+    hist->GetFunction("2fit")->ResetBit(TF1::kNotDraw);
     LG_func->GetParameters(gparameters);
+
 
     if (parameters.verbose>1) {
         std::cout << "Gaussian Fit is Done. Parameters:" << std::endl;

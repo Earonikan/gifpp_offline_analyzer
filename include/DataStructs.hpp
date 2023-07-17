@@ -11,7 +11,7 @@ struct Parameters
     bool root_tree = false;
     int verbose = 0;
     std::vector<std::string> argKeys = {"--runtype", "--filename", "--runnumber", "--runrange", "--stdout", "--verbose", "--root"};
-    std::vector<std::string> runTypes = {"BVSCAN", "LED", "IRRADIATION", "ANNEALING", "COSMIC", "ALL"};
+    std::vector<std::string> runTypes = {"BVSCAN", "LED", "MONITORING", "MIP"};
     std::string runkey = runTypes[2];
     std::string data_start = "Wed Jun  7 22:39:50 2023";
     std::string data_annealing = "Wed Jun 28 08:10:54 2023";

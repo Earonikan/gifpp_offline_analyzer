@@ -40,10 +40,10 @@ private:
     BVData output_bv;
     ANNData output_ann;
 
-    void ProcessingIrradiation();
+    void ProcessingMonitoring();
     void ProcessingLED();
     void ProcessingBVSCAN();
-    void ProcessingAnnealing();
+    void ProcessingMIPs();
     long int TimeConverterToSec(std::string date1, std::string date2);
 public:
     Analyzer(int argv, char *argc[]);
