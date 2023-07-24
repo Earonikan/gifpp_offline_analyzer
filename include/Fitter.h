@@ -49,8 +49,8 @@ double generpoiss(double *x, double *p){
   return fitval;
 }
 
-struct GenPoisParams{
-  GenPoisParams():gain(0),u0(0),s0(0),sG(0),lambda(0),navg(0),npeaks(0),chi2_ndf(0),gain_err(0),gain_spe_01(0),gs0(0),gs1(0),gm0(0),gm1(0),gN0(0),gN1(0),g0Chi2(0), g1Chi2(0),g0NDF(0),g1NDF(0),g0Integral(0),g1Integral(0){}
+struct GenPoisParams {
+  GenPoisParams():gain(0),u0(0),s0(0),sG(0),lambda(0),navg(0),npeaks(0),chi2_ndf(0),gain_err(0),gain_spe_01(0),gs0(0),gs1(0),gm0(0),gm1(0),gN0(0),gN1(0),g0Chi2(0), g1Chi2(0),g0NDF(0),g1NDF(0),g0Integral(0),g1Integral(0),hmean(0),hrms(0){}
 
   /* GP fit */
   double gain, u0, s0, sG, lambda, navg, npeaks, chi2_ndf;
@@ -65,22 +65,22 @@ struct GenPoisParams{
   double g0Integral, g1Integral;
 
   /* Info from histogram */
-
-} fp;
+  double hmean, hrms;
+};
 
 TF1 *GPFit(TH1F* hist2proc, bool verbose, int xlow=-5000, int xhigh=50000){
 
-    // TCanvas c1("c1", "c1")
-  double npe_peaks, mu_hist, par[6], lastbin_x;
+  GenPoisParams fp;
+  double npe_peaks, mu_hist, par[6];
   double binwidth;
   int ntotal;
 
-  hist2proc->Rebin(20);
+  hist2proc->Rebin(10);
   //hist2proc->GetXaxis()->UnZoom();
   binwidth=hist2proc->GetBinWidth(1);
   // uncomment this for day 7
-  xlow = hist2proc->GetBinCenter(hist2proc->FindFirstBinAbove(0,1));
-  xhigh = hist2proc->GetBinCenter(hist2proc->FindLastBinAbove(0,1)); // in case of only GP in histogram
+  //xlow = hist2proc->GetBinCenter(hist2proc->FindFirstBinAbove(0,1));
+  //xhigh = hist2proc->GetBinCenter(hist2proc->FindLastBinAbove(0,1)); // in case of only GP in histogram
   hist2proc -> GetXaxis() -> SetRangeUser(xlow, xhigh);
   ntotal=hist2proc->Integral();
   if (verbose) std::cout<<"Spectrum created"<<std::endl;
@@ -102,12 +102,12 @@ TF1 *GPFit(TH1F* hist2proc, bool verbose, int xlow=-5000, int xhigh=50000){
   // Fit first two peaks with Gauss function. Fit range is 1/3 of distance between two peaks
   TF1 g1("peak0","gaus",xpeaks[0]-(xpeaks[1]-xpeaks[0])/3,xpeaks[0]+(xpeaks[1]-xpeaks[0])/3);
   g1.SetLineColor(kCyan);
-  hist2proc -> Fit(&g1,"RQM0");
+  hist2proc -> Fit(&g1,"RQ0");
   hist2proc->GetFunction("peak0")->ResetBit(TF1::kNotDraw);
 
   TF1 g2("peak1","gaus",xpeaks[1]-(xpeaks[1]-xpeaks[0])/3,xpeaks[1]+(xpeaks[1]-xpeaks[0])/3);
   g2.SetLineColor(kCyan);
-  hist2proc -> Fit(&g2,"RQM0+");
+  hist2proc -> Fit(&g2,"RQ0+");
   hist2proc->GetFunction("peak1")->ResetBit(TF1::kNotDraw);
 
   fp.g1Chi2 = g2.GetChisquare();
@@ -151,7 +151,7 @@ TF1 *GPFit(TH1F* hist2proc, bool verbose, int xlow=-5000, int xhigh=50000){
   func -> SetParNames("lambda", "gain_SPE", "sigma_gain", "mu_avg", "mu0", "sigma0", "NxW", "npe_peaks");
   func -> SetNpx(1000);
   if (verbose) std::cout<<"GP fiting"<<std::endl;
-  hist2proc -> Fit(func, "RQM0+");
+  hist2proc -> Fit(func, "RQ0+");
   hist2proc->GetFunction("generpoiss")->ResetBit(TF1::kNotDraw);
   //hist2proc->GetXaxis()->UnZoom();
 
@@ -189,11 +189,13 @@ TF1 *GPFit(TH1F* hist2proc, bool verbose, int xlow=-5000, int xhigh=50000){
   return (func);
 }
 
-TF1* GFit(TH1F *hist, bool verbose) {
+TF1* GFit(TH1F *hist, bool verbose, int rebin, int multA, int multB) {
 
-  double max = hist->GetMaximum();
-  double lower_bound = hist->GetXaxis()->GetBinLowEdge(hist->FindFirstBinAbove(max/10,1,5,-1));
-  double upper_bound = hist->GetXaxis()->GetBinUpEdge(hist->FindLastBinAbove(2*max/3));
+
+  hist->Rebin(rebin);
+
+  double lower_bound = hist->GetXaxis()->GetBinLowEdge(hist->GetMaximumBin()-5);
+  double upper_bound = hist->GetXaxis()->GetBinUpEdge(hist->GetMaximumBin()+5);
   int gnpar = 3, lgnpar = 4;
   double gparameters[gnpar],parameters[lgnpar];
 
@@ -206,7 +208,8 @@ TF1* GFit(TH1F *hist, bool verbose) {
   std::cout << std::endl;*/
 
   TF1 *G_func = new TF1("1 fit","gaus",lower_bound, upper_bound);
-  hist->Fit(G_func,"RQM0+");
+  hist->Fit(G_func,"RQ0+");
+  hist->GetFunction("1 fit")->ResetBit(TF1::kNotDraw);
   G_func->GetParameters(gparameters);
 
   /*std::cout << "Gaussian Fit 1 is Done. Parameters:" << std::endl;
@@ -225,8 +228,8 @@ TF1* GFit(TH1F *hist, bool verbose) {
   parameters[1] = gparameters[1];
   parameters[2] = gparameters[2];
 
-  lower_bound = parameters[1]-2*parameters[2];
-  upper_bound = parameters[1]+parameters[2];
+  lower_bound = parameters[1]-parameters[2]/3*multA;
+  upper_bound = parameters[1]+parameters[2]/3*multB;
 
   //std::cout << "Starting 2 Gaussian Fit...." << std::endl;
   //std::cout << std::endl;  
@@ -238,7 +241,8 @@ TF1* GFit(TH1F *hist, bool verbose) {
   //LG_func->SetParLimits(3, 0, 500000);
   //LG_func->FixParameter(3, TMath::Sqrt(1049.09 + 27.53166 * gparameters[1]));
   LG_func->SetLineColor(kGreen);
-  hist->Fit(LG_func,"RQM0+");
+  hist->Fit(LG_func,"RQ0+");
+  hist->GetFunction("2 fit")->ResetBit(TF1::kNotDraw);
   LG_func->GetParameters(parameters);
   //hist->GetXaxis()->UnZoom();
 
@@ -262,3 +266,208 @@ TF1* GFit(TH1F *hist, bool verbose) {
 
 }
 
+
+TF1* DGFit(TH1F *hist, bool verbose, int rebin) {
+
+
+  hist->Rebin(rebin);
+
+  int gnpar = 3;
+  double gparameters1[gnpar], gparameters2[gnpar];
+
+  TSpectrum s(2);
+  int nfound = s.Search(hist, 3, "goff", 0.05);
+  double *_xpeaks = s.GetPositionX();
+  std::vector<float> xpeaks;
+  xpeaks.clear();
+  if (_xpeaks==nullptr) {
+    std::cout << "_xpeaks is nullptr" << std::endl;
+  } else {
+    for (int p = 0; p < nfound; p++) xpeaks.push_back(_xpeaks[p]);
+  }
+  std::sort(xpeaks.begin(), xpeaks.end());
+
+  if (verbose) std::cout << "Double Gauss fiting" << std::endl;
+  TF1 *g1 = new TF1("peak11","gaus",xpeaks[0]-(xpeaks[1]-xpeaks[0])/3,xpeaks[0]+(xpeaks[1]-xpeaks[0])/3);
+  g1->SetLineColor(kCyan);
+  g1->SetParameter(1,xpeaks[0]);
+  hist->Fit(g1,"RQ0");
+  g1->GetParameters(gparameters1);
+  hist->GetFunction("peak11")->ResetBit(TF1::kNotDraw);
+
+  TF1 *g2 = new TF1("peak12","gaus",xpeaks[1]-(xpeaks[1]-xpeaks[0])/3,xpeaks[1]+(xpeaks[1]-xpeaks[0])/3);
+  g2->SetParameter(1,xpeaks[1]);
+  g2->SetLineColor(kCyan);
+  hist->Fit(g2,"RQ0+");
+  g2->GetParameters(gparameters2);
+  hist->GetFunction("peak12")->ResetBit(TF1::kNotDraw);
+
+
+  if (verbose) {
+
+    double Chi2 = g1->GetChisquare();
+    double NDF = g1->GetNDF();
+
+    std::cout << "1 st Gauss Peak Fit is Done. Parameters:" << std::endl;
+    std::cout << "Maximum 1st Gauss = " << gparameters1[0] << std::endl;
+    std::cout << "Mean 1st Gauss = " << gparameters1[1] << std::endl;
+    std::cout << "Sigma 1st Gauss = " << gparameters1[2] << std::endl;
+  
+    //Chi2 = LG_func->GetChisquare();
+    //NDF = LG_func->GetNDF();
+
+    //std::cout << std::endl;
+    //std::cout << "Chi^2/NDF is " << Chi2 << " / " << NDF << std::endl;
+    std::cout << "Chi^2/NDF is " << Chi2/NDF << std::endl;
+    std::cout << std::endl;
+
+
+    Chi2 = g2->GetChisquare();
+    NDF = g2->GetNDF();
+
+    std::cout << "2 st Gauss Peak Fit is Done. Parameters:" << std::endl;
+    std::cout << "Maximum 2st Gauss = " << gparameters2[0] << std::endl;
+    std::cout << "Mean 2st Gauss = " << gparameters2[1] << std::endl;
+    std::cout << "Sigma 2st Gauss = " << gparameters2[2] << std::endl;
+  
+    //Chi2 = LG_func->GetChisquare();
+    //NDF = LG_func->GetNDF();
+
+    //std::cout << std::endl;
+    //std::cout << "Chi^2/NDF is " << Chi2 << " / " << NDF << std::endl;
+    std::cout << "Chi^2/NDF is " << Chi2/NDF << std::endl;
+    std::cout << std::endl;
+
+  }
+
+  g2->SetParameter(0,gparameters1[1]);
+  g2->SetParError(0,g1->GetParError(1)); 
+
+  return g2;
+
+}
+
+
+GenPoisParams GPFit_par(TH1F* hist2proc, bool verbose, int xlow=-5000, int xhigh=50000){
+
+  GenPoisParams fp;
+  double npe_peaks, mu_hist, par[6];
+  double binwidth;
+  int ntotal;
+
+  hist2proc->Rebin(20);
+  //hist2proc->GetXaxis()->UnZoom();
+  binwidth=hist2proc->GetBinWidth(1);
+  // uncomment this for day 7
+  xlow = hist2proc->GetBinCenter(hist2proc->FindFirstBinAbove(0,1));
+  xhigh = hist2proc->GetBinCenter(hist2proc->FindLastBinAbove(0,1)); // in case of only GP in histogram
+  hist2proc -> GetXaxis() -> SetRangeUser(xlow, xhigh);
+  ntotal=hist2proc->Integral();
+  if (verbose) std::cout<<"Spectrum created"<<std::endl;
+
+  // Find all peaks and write their positions to vector
+  TSpectrum s(15);
+  int nfound = s.Search(hist2proc, 3, "goff", 0.05);
+  double *_xpeaks = s.GetPositionX();
+  std::vector<float> xpeaks;
+  xpeaks.clear();
+  if (_xpeaks==nullptr) {
+    std::cout << "_xpeaks is nullptr" << std::endl;
+  } else {
+    for (int p = 0; p < nfound; p++) xpeaks.push_back(_xpeaks[p]);
+  }
+  std::sort(xpeaks.begin(), xpeaks.end());
+
+  if (verbose) std::cout << "Gauss fiting" << std::endl;
+  // Fit first two peaks with Gauss function. Fit range is 1/3 of distance between two peaks
+  TF1 g1("peak0","gaus",xpeaks[0]-(xpeaks[1]-xpeaks[0])/3,xpeaks[0]+(xpeaks[1]-xpeaks[0])/3);
+  g1.SetLineColor(kCyan);
+  hist2proc -> Fit(&g1,"RQ0");
+  hist2proc->GetFunction("peak0")->ResetBit(TF1::kNotDraw);
+
+  TF1 g2("peak1","gaus",xpeaks[1]-(xpeaks[1]-xpeaks[0])/3,xpeaks[1]+(xpeaks[1]-xpeaks[0])/3);
+  g2.SetLineColor(kCyan);
+  hist2proc -> Fit(&g2,"RQ0+");
+  hist2proc->GetFunction("peak1")->ResetBit(TF1::kNotDraw);
+
+  fp.g1Chi2 = g2.GetChisquare();
+  fp.g0NDF = g1.GetNDF();
+  fp.g1NDF = g2.GetNDF();
+  fp.g0Integral = g1.Integral(xpeaks[0]-(xpeaks[1]-xpeaks[0])/3,xpeaks[0]+(xpeaks[1]-xpeaks[0])/3);
+  fp.g1Integral = g2.Integral(xpeaks[1]-(xpeaks[1]-xpeaks[0])/3,xpeaks[1]+(xpeaks[1]-xpeaks[0])/3);
+
+
+  g1.SetLineColor(kGreen+2);
+  g2.SetLineColor(kGreen+2);
+  g1.GetParameters(&par[0]);
+  g2.GetParameters(&par[3]);
+
+  // Get mean and sigma of two Gaussians
+  fp.gN0 = g1.GetParameter(0); // g1params[0]
+  fp.gm0 = g1.GetParameter(1);
+  fp.gs0 = g1.GetParameter(2);
+  fp.gN1 = g2.GetParameter(0);
+  fp.gm1 = g2.GetParameter(1);
+  fp.gs1 = g2.GetParameter(2);
+  fp.gain_spe_01 = fp.gm1 - fp.gm0;
+
+  // Set new range for histogram (Mu1-Mu0)/2 around Mu0
+  hist2proc->GetXaxis()->SetRangeUser(fp.gm0-(fp.gm1-fp.gm0)/2,fp.gm0+(fp.gm1-fp.gm0)/2);
+  n0 = hist2proc -> Integral();
+  hist2proc->GetXaxis()->SetRangeUser(xlow, xhigh);
+  mu_hist= -TMath::Log(1.*n0/ntotal);
+  //npe_peaks = 3;
+  npe_peaks = TMath::Nint((xhigh-fp.gm0)/(fp.gm1-fp.gm0));
+  //cout << npe_peaks << endl;
+
+  // Construct GP function in range [Mu0-(Mu1-Mu0)/2, xhigh]
+  TF1 *func = new TF1("generpoiss", generpoiss, fp.gm0-(fp.gm1-fp.gm0)/2, xhigh, 8);
+  // Set initial parameters for GP and limits for them
+  func -> SetParameters( 0.1, fp.gm1-fp.gm0, sqrt(abs(fp.gs1*fp.gs1 - fp.gs0*fp.gs0)), mu_hist, fp.gm0, fp.gs0, binwidth*ntotal, npe_peaks); //initial parameters
+  func -> SetParLimits(1, 0, 1.5*(fp.gm1-fp.gm0));
+  //func -> FixParameter(0, 0);
+  //func -> FixParameter(7, npe_peaks);
+  func -> FixParameter(7, 5);
+  func -> SetParNames("lambda", "gain_SPE", "sigma_gain", "mu_avg", "mu0", "sigma0", "NxW", "npe_peaks");
+  func -> SetNpx(1000);
+  if (verbose) std::cout<<"GP fiting"<<std::endl;
+  hist2proc -> Fit(func, "RQ0+");
+  hist2proc->GetFunction("generpoiss")->ResetBit(TF1::kNotDraw);
+  //hist2proc->GetXaxis()->UnZoom();
+
+  // put parameters of GP to fp structure
+  fp.gain = func->GetParameter(1);
+  fp.u0 = func->GetParameter(4);
+  fp.s0 = func->GetParameter(5);
+  fp.sG = func->GetParameter(2);
+  fp.lambda = func->GetParameter(0);
+  fp.navg = func->GetParameter(3);
+  fp.npeaks = func->GetParameter(7);
+
+  fp.gain_err = func->GetParError(1);
+
+  double Chi2 = func->GetChisquare();
+  double NDF = func->GetNDF();
+
+  fp.chi2_ndf = Chi2/NDF;
+
+  fp.hmean = hist2proc->GetMean();
+  fp.hrms = hist2proc->GetRMS();
+
+  if (verbose) {
+
+	std::cout << std::endl;
+	std::cout << "GenPoiss Fit is Done. Parameters:" << std::endl;
+	std::cout << "Baseline Sigma0 = " << fp.s0 << std::endl;
+	std::cout << "SPE Gain = " << fp.gain << " +- " << fp.gain_err << std::endl;
+	std::cout << "SPE Gain Width = " << fp.sG << std::endl;
+	std::cout << "SPE Lambda = " << fp.lambda << std::endl;
+	std::cout << "SPE Mu = " << fp.navg << std::endl;
+  
+  	std::cout << "Chi^2/NDF is " << Chi2/NDF << std::endl;
+  	std::cout << std::endl;
+ }
+
+  // return GP function
+  return fp;
+}

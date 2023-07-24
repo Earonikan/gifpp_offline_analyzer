@@ -31,13 +31,23 @@ struct data
 	float current2;
 	float T2;
 
-    float AmpChargeMean;
-    float AmpChargeRMS;
+	float LYSO_Yield;
+	float LYSO_eYield;
+	float LYSO_Gain;
+	float LYSO_eGain;
+};
+
+struct gp_data
+{
+	GenPoisParams ch1;
+	GenPoisParams ch2;
 };
 
 void fitBVscan(int num1, int num2);
-data fitBVstep_mod(const char* fileName);
+gp_data fitBVstep_spe(const char* fileName);
 void fitGain(int run);
+void fitSPE(int run);
+data fitBVstep(const char* fileName);
 
 int main(int argv, char *argc[])
 {
@@ -46,7 +56,9 @@ int main(int argv, char *argc[])
     TSystemDirectory dir(".", "/home/qfl/online/midas_digi/daq");
     TList *files = dir.GetListOfFiles();
     
-    int num1, num2;
+    int num1, runstart, runstop;
+    runstart = atoi(argc[1]);
+    runstop = atoi(argc[2]);
     if (files) {
 
         TSystemFile *file;
@@ -67,10 +79,10 @@ int main(int argv, char *argc[])
                     // std::cout << ", elapsed time in seconds: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " sec." << std::endl;
                 // }
                 sscanf(fname.Data(), "output0000%d.root", &num1);
-                if ((num1 >= 4739)&&(num1 <= 4846))
+                if ((num1 >= runstart)&&(num1 <= runstop))
                 {
                     std::cout << "Processing run " << num1 << std::endl;
-                    fitGain(num1);
+                    fitSPE(num1);
 
 
                 }
@@ -117,7 +129,7 @@ void fitBVscan(int runstart, int runstop)
         	else filename += "output0000";
 		filename += i;
 		filename += ".root";		
-		output = fitBVstep_mod(filename);
+		output = fitBVstep(filename);
 
 		BVs1[k] = output.BV1;
 		eBVs1[k] = 0.01;
@@ -162,108 +174,123 @@ void fitBVscan(int runstart, int runstop)
 }
 
 
-data fitBVstep_mod(const char* fileName)
+data fitBVstep(const char* fileName)
 {
-  TString fileName_full = "/home/qfl/online/midas_digi/daq/";
-  fileName_full += fileName;
-  //cout << "Analyzing file " << fileName << endl;sssss
-  TFile *file = TFile::Open(fileName_full);
-  TH1F *htemp1, *htemp2, *hBV1, *hBV2, *hI1, *hI2, *hT1, *hT2, *hQ4, *hB1, *hB2;
-  TH2F *hmean_rms1, *hmean_rms2;
-  TProfile *hmean1, *hmean2, *hrms1, *hrms2;
+    TString fileName_full = "/home/qfl/online/midas_digi/daq/";
+    fileName_full += fileName;
+    //cout << "Analyzing file " << fileName << endl;sssss
+    TFile *file = TFile::Open(fileName_full);
+    TH1F *htemp1, *htemp2, *hBV1, *hBV2, *hI1, *hI2, *hT1, *hT2, *hB1, *hB2, *hL3, *hLb3;
+    TH2F *hmean_rms1, *hmean_rms2;
+    TProfile *hmean1, *hmean2, *hrms1, *hrms2;
 
-  file->GetObject("ch1/charge_spectrum_cut_ch1",htemp1);//add cut!!!
-  file->GetObject("ch1/waveformMEAN_ch1",hmean1);
-  file->GetObject("ch1/waveformRMS_ch1",hrms1);
-  file->GetObject("ch1/Mean_vs_RMS_ch1",hmean_rms1);
-  file->GetObject("ch1/baseline_spectrum_ch1",hB1);
-  file->GetObject("gpib/gpib_0",hI1);
-  file->GetObject("gpib/gpib_2",hBV1);
-  file->GetObject("temperatures/temperature_0",hT1);
-  TF1 *ch1 = GPFit(htemp1,0);
+    gErrorIgnoreLevel = 6001;
 
-  file->GetObject("ch2/charge_spectrum_cut_ch2",htemp2);//add cut!!!
-  file->GetObject("ch2/waveformMEAN_ch2",hmean2);
-  file->GetObject("ch2/waveformRMS_ch2",hrms2);
-  file->GetObject("ch2/Mean_vs_RMS_ch2",hmean_rms2);
-  file->GetObject("ch2/baseline_spectrum_ch2",hB2);
-  file->GetObject("gpib/gpib_1",hI2);
-  file->GetObject("gpib/gpib_3",hBV2);
-  file->GetObject("temperatures/temperature_1",hT2);
-  TF1 *ch2 = GPFit(htemp2,0);
+    file->GetObject("ch1/charge_spectrum_cut_ch1",htemp1);//add cut!!!
+    file->GetObject("ch1/waveformMEAN_ch1",hmean1);
+    file->GetObject("ch1/waveformRMS_ch1",hrms1);
+    file->GetObject("ch1/Mean_vs_RMS_ch1",hmean_rms1);
+    file->GetObject("ch1/baseline_spectrum_ch1",hB1);
+    file->GetObject("gpib/gpib_0",hI1);
+    file->GetObject("gpib/gpib_2",hBV1);
+    file->GetObject("temperatures/temperature_0",hT1);
+    TF1 *ch1 = GPFit(htemp1,0);
 
-  file->GetObject("ch4/charge_spectrum_ch4",hQ4);
-  TF1 *ch4 = GFit(hQ4, 0);
+    file->GetObject("ch2/charge_spectrum_cut_ch2",htemp2);//add cut!!!
+    file->GetObject("ch2/waveformMEAN_ch2",hmean2);
+    file->GetObject("ch2/waveformRMS_ch2",hrms2);
+    file->GetObject("ch2/Mean_vs_RMS_ch2",hmean_rms2);
+    file->GetObject("ch2/baseline_spectrum_ch2",hB2);
+    file->GetObject("gpib/gpib_1",hI2);
+    file->GetObject("gpib/gpib_3",hBV2);
+    file->GetObject("temperatures/temperature_1",hT2);
+    TF1 *ch2 = GPFit(htemp2,0);
 
-  data output;
-  output.Gain1 = ch1->GetParameter(1);
-  output.eGain1 = ch1->GetParError(1);
+    data output;
 
-  output.Gain2 = ch2->GetParameter(1);
-  output.eGain2 = ch2->GetParError(1);
+    file->GetObject("ch3/charge_spectrum_ch3",hL3);
+    TF1 *ch3 = GFit(hL3, 0, 256, 1, 3);
+    output.LYSO_Yield = ch3->GetParameter(1);
 
-  output.BV1 = hBV1->Integral()/hBV1->GetEntries();
-  output.BV2 = hBV2->Integral()/hBV2->GetEntries();
+    file->GetObject("ch3/charge_spectrum_cut_ch3",hLb3);
+    if (hLb3->GetEntries()!=0) {
+        TF1 *ch3b = DGFit(hLb3, 0, 4);
+        output.LYSO_Gain = ch3b->GetParameter(1) - ch3b->GetParameter(0);
+    }
+    else {
+        output.LYSO_Gain = 1;
+    }  
 
-  output.current1 = hI1->Integral()/hI1->GetEntries();
-  output.current2 = hI2->Integral()/hI2->GetEntries();
+    output.Gain1 = ch1->GetParameter(1);
+    output.eGain1 = ch1->GetParError(1);
 
-  output.T1 = hT1->Integral()/hT1->GetEntries();
-  output.T2 = hT2->Integral()/hT2->GetEntries();
+    output.Gain2 = ch2->GetParameter(1);
+    output.eGain2 = ch2->GetParError(1);
 
-  //cout << output.current1 << "\t" << output.current2 << endl;
+    output.BV1 = hBV1->Integral()/hBV1->GetEntries();
+    output.BV2 = hBV2->Integral()/hBV2->GetEntries();
 
-  output.mean1 = hmean1->GetSum()/hmean1->GetEntries();
-  output.mean2 = hmean2->GetSum()/hmean2->GetEntries();
+    output.current1 = hI1->Integral()/hI1->GetEntries();
+    output.current2 = hI2->Integral()/hI2->GetEntries();
 
-  output.rms1 = hrms1->GetSum()/hrms1->GetEntries();
-  output.rms2 = hrms2->GetSum()/hrms2->GetEntries();
+    output.T1 = hT1->Integral()/hT1->GetEntries();
+    output.T2 = hT2->Integral()/hT2->GetEntries();
 
-  hmean_rms1->GetXaxis()->SetRangeUser(-100,10);
-  //output.baseline1 = hmean_rms1->GetMean(2);
-//   output.rmsb1 = hmean_rms1->GetRMS(2);
-  output.baseline1 = hB1->GetMean();
-  output.rmsb1 = hB1->GetRMS();
+    //cout << output.current1 << "\t" << output.current2 << endl;
 
-  hmean_rms2->GetXaxis()->SetRangeUser(-100,10);
-//   output.baseline2 = hmean_rms2->GetMean(2);
-//   output.rmsb2 = hmean_rms2->GetRMS(2);
-  output.baseline2 = hB2->GetMean();
-  output.rmsb2 = hB2->GetRMS();
+    output.mean1 = hmean1->GetSum()/hmean1->GetEntries();
+    output.mean2 = hmean2->GetSum()/hmean2->GetEntries();
 
-  output.AmpChargeMean = ch4->GetParameter(1);
-  output.AmpChargeRMS = ch4->GetParameter(2);
-  
-  delete htemp1;
-  delete htemp2;
-  delete hBV1;
-  delete hBV2;
-  delete hI1;
-  delete hI2;
-  delete hrms1;
-  delete hrms2;
-  delete hmean1;
-  delete hmean2;
-  delete hT1;
-  delete hT2;
-  delete ch1;
-  delete ch2;
-  delete hmean_rms1;
-  delete hmean_rms2;
+    output.rms1 = hrms1->GetSum()/hrms1->GetEntries();
+    output.rms2 = hrms2->GetSum()/hrms2->GetEntries();
 
-  delete hQ4;
+    //hmean_rms1->GetXaxis()->SetRangeUser(-100,10);
+    //output.baseline1 = hmean_rms1->GetMean(2);
+    //   output.rmsb1 = hmean_rms1->GetRMS(2);
+    TF1 *ch1b = GFit(hB1, 0, 1, 3, 1);
+    //output.baseline1 = hB1->GetXaxis()->GetBinCenter(hB1->GetMaximumBin());
+    output.baseline1 = ch1b->GetParameter(1);
+    output.rmsb1 = hB1->GetRMS();
 
-  file->Close();
+    //hmean_rms2->GetXaxis()->SetRangeUser(-100,10);
+    //output.baseline2 = hmean_rms2->GetMean(2);
+    //output.rmsb2 = hmean_rms2->GetRMS(2);
+    //output.baseline2 = hB2->GetMean();
+    TF1 *ch2b = GFit(hB2, 0, 1, 3, 1);
+    //output.baseline2 = hB2->GetXaxis()->GetBinCenter(hB2->GetMaximumBin());
+    output.baseline2 = ch2b->GetParameter(1);
+    output.rmsb2 = hB2->GetRMS();
+    
+    delete htemp1;
+    delete htemp2;
+    delete hBV1;
+    delete hBV2;
+    delete hI1;
+    delete hI2;
+    delete hrms1;
+    delete hrms2;
+    delete hmean1;
+    delete hmean2;
+    delete hT1;
+    delete hT2;
+    delete ch1;
+    delete ch2;
+    delete hmean_rms1;
+    delete hmean_rms2;
 
-  delete file;
+    //delete hQ4;
 
-  return output;
+    file->Close();
+
+    delete file;
+
+    return output;
 
 }
 
 void fitGain(int run)
 {
-    std::string str_result = "output_results7.txt";
+    std::string str_result = "output_results10.txt";
     FILE* ptr_res = fopen(str_result.c_str(), "a+");
     if (ptr_res == NULL) {
         printf("cannot open output file\n");
@@ -276,7 +303,7 @@ void fitGain(int run)
 	else filename += "output0000";
 	filename += run;
 	filename += ".root";		
-	o = fitBVstep_mod(filename);
+	o = fitBVstep(filename);
 
 	fprintf(ptr_res,"%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", run,
                                                                             o.Gain1, o.Gain2,
@@ -287,7 +314,71 @@ void fitGain(int run)
                                                                             o.rmsb1, o.rmsb2,
                                                                             o.current1*1e9, o.current2*1e9,
                                                                             o.T1, o.T2,
-                                                                            o.AmpChargeMean, o.AmpChargeRMS);
+                                                                            o.LYSO_Yield, o.LYSO_Gain);
 
     fclose(ptr_res);
 }
+
+void fitSPE(int run)
+{
+    std::string str_result = "output_results11.txt";
+    FILE* ptr_res = fopen(str_result.c_str(), "a+");
+    if (ptr_res == NULL) {
+        printf("cannot open output file\n");
+        exit(0);
+    }
+
+	gp_data o;
+	TString filename;
+	if (run<1000) filename += "output00000";
+	else filename += "output0000";
+	filename += run;
+	filename += ".root";		
+	o = fitBVstep_spe(filename);
+
+	fprintf(ptr_res,"%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", run,
+                                                                            o.ch1.gain, o.ch2.gain,
+                                                                            o.ch1.gain_err, o.ch2.gain_err,
+                                                                            o.ch1.u0, o.ch2.u0,
+                                                                            o.ch1.s0, o.ch2.s0,
+                                                                            o.ch1.sG, o.ch2.sG,
+                                                                            o.ch1.lambda, o.ch2.lambda,
+                                                                            o.ch1.navg, o.ch2.navg,
+                                                                            o.ch1.hmean, o.ch2.hmean,
+                                                                            o.ch1.hrms, o.ch2.hrms);
+
+    fclose(ptr_res);
+}
+
+
+gp_data fitBVstep_spe(const char* fileName)
+{
+    TString fileName_full = "/home/qfl/online/midas_digi/daq/";
+    fileName_full += fileName;
+    //cout << "Analyzing file " << fileName << endl;sssss
+    TFile *file = TFile::Open(fileName_full);
+    TH1F *htemp1, *htemp2;
+
+    gErrorIgnoreLevel = 6001;
+
+    gp_data output;
+ 
+
+    file->GetObject("ch1/charge_spectrum_cut_ch1",htemp1);
+    output.ch1 = GPFit_par(htemp1,0);//,-500,2000);
+
+    file->GetObject("ch2/charge_spectrum_cut_ch2",htemp2);
+    output.ch2 = GPFit_par(htemp2,0);//,-500,2000);
+
+
+    delete htemp1;
+    delete htemp2;
+
+    file->Close();
+
+    delete file;
+
+    return output;
+
+}
+
