@@ -153,19 +153,20 @@ void Analyzer::Processing()
 void Analyzer::ProcessingLED()
 {
     std::string line;
-    std::size_t found;
+    std::size_t found, found2;
     int runnum;
     //std::cout << "HERE"<< std::endl;
     while (std::getline(runlist_file, line))
     {
         found = line.find("run");
+        found2 = line.find("type");
         if (found != std::string::npos)
         {   
-            runnum = std::stoi(line.substr(4, 4));
+            runnum = std::stoi(line.substr(found + 4, found2 - found - 5));
             if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
             {
-                found = line.find("type");
-                runtype_ = line.substr(found + 5, line.size() - (found + 4));
+                // found = line.find("type");
+                runtype_ = line.substr(found2 + 5, line.size() - (found2 + 4));
                 if (runtype_ == "LED")
                 {
                     if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
@@ -179,19 +180,20 @@ void Analyzer::ProcessingLED()
 void Analyzer::ProcessingBVSCAN()
 {
     std::string line;
-    std::size_t found;
+    std::size_t found, found2;
     int runnum, prevrun = 0;
     //std::cout << "HERE"<< std::endl;
     while (std::getline(runlist_file, line))
     {
         found = line.find("run");
+        found2 = line.find("type");
         if (found != std::string::npos)
         {   
-            runnum = std::stoi(line.substr(4, 4));
+            runnum = std::stoi(line.substr(found + 4, found2 - found - 5));
             if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop) && (runnum > prevrun)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
             {
-                found = line.find("type");
-                runtype_ = line.substr(found + 5, line.size() - (found + 4));
+                // found = line.find("type");
+                runtype_ = line.substr(found2 + 5, line.size() - (found2 + 4));
                 if (runtype_ == "BVSCAN")
                 {
                     if (parameters.verbose > 0) std::cout << "Processing runs " << runnum << " " << runnum + 8 << " runtype " << runtype_ << std::endl;
@@ -206,19 +208,20 @@ void Analyzer::ProcessingBVSCAN()
 void Analyzer::ProcessingMonitoring()
 {
     std::string line;
-    std::size_t found;
+    std::size_t found, found2;
     int runnum, prevrun = 0;
 
     while (std::getline(runlist_file, line))
     {
         found = line.find("run");
+        found2 = line.find("type");
         if (found != std::string::npos)
         {   
-            runnum = std::stoi(line.substr(4, 4));
+            runnum = std::stoi(line.substr(found + 4, found2 - found - 5));
             if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop) && (runnum > prevrun)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
             {
-                found = line.find("type");
-				runtype_ = line.substr(found + 5, line.size() - (found + 4));
+                // found = line.find("type");
+				runtype_ = line.substr(found2 + 5, line.size() - (found2 + 4));
 				if (runtype_ == "LED") {
                 // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
                 	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
@@ -240,19 +243,20 @@ void Analyzer::ProcessingMonitoring()
 void Analyzer::ProcessingMIPs()
 {
     std::string line;
-    std::size_t found;
+    std::size_t found, found2;
     int runnum, prevrun = 0, prev_cosmic_rum = 0;
 
     while (std::getline(runlist_file, line))
     {
         found = line.find("run");
+        found2 = line.find("type");
         if (found != std::string::npos)
         {   
-            runnum = std::stoi(line.substr(4, 4));
+            runnum = std::stoi(line.substr(found + 4, found2 - found - 5));
             if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop) && (runnum > prevrun)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
             {
-                found = line.find("type");
-				runtype_ = line.substr(found + 5, line.size() - (found + 4));
+                // found = line.find("type");
+				runtype_ = line.substr(found2 + 5, line.size() - (found2 + 4));
 				if (runtype_ == "LED") {
                 // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
                 	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
