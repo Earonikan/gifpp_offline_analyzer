@@ -290,7 +290,8 @@ void Analyzer::AnalyzeSource(int run) {
 	std::string filename;
 	filename +=	pathname;
 	if (run<1000) filename += "output00000";
-	else filename += "output0000";
+	else if (run<10000) filename += "output0000";
+        else filename += "output000";
 	filename +=  std::to_string(run);
 	filename += ".root";
 
@@ -396,7 +397,8 @@ void Analyzer::AnalyzeCOSMIC(int run) {
 
         filename = pathname;
         if (run<1000) filename += "output00000";
-        else filename += "output0000";
+        else if (run<10000) filename += "output0000";
+            else filename += "output000";
         filename +=  std::to_string(i);
         filename += ".root";
 
@@ -601,7 +603,8 @@ void Analyzer::AnalyzeRun(int run)
 	std::string filename;
 	filename +=	pathname;
 	if (run<1000) filename += "output00000";
-	else filename += "output0000";
+	else if (run<10000) filename += "output0000";
+        else filename += "output000";
 	filename +=  std::to_string(run);
 	filename += ".root";
 
