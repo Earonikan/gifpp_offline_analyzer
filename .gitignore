@@ -1,6 +1,10 @@
 **/obj
 **offline_analyzer
-**monitoring_results.txt
-**BVSCAN_results.txt
-**MIP_results.txt
-**GIFpp_Data.root
+**monitoring_results_annealing.txt
+**monitoring_results_irradiation.txt
+**BVSCAN_results_annealing.txt
+**MIP_results_annealing.txt
+**GIFpp_Data_annealing.root
+**BVSCAN_results_irradiaiton.txt
+**MIP_results_irradiaiton.txt
+**GIFpp_Data_irradiaiton.root

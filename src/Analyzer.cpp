@@ -389,6 +389,9 @@ void Analyzer::AnalyzeSource(int run) {
     
     if (!parameters.stdout_flag) {
         std::string str_result = "MIP_results.txt";
+        if (parameters.annealing) str_result += "_annealing";
+        else str_result += "_irradiation";        
+        str_result += ".txt";
         FILE* ptr_res = fopen(str_result.c_str(), "a+");
         if (ptr_res == NULL)
         {
@@ -499,7 +502,10 @@ void Analyzer::AnalyzeCOSMIC(int run) {
     output_ann.eMIP2 = g2->GetParError(1);
     
     if (!parameters.stdout_flag) {
-        std::string str_result = "MIP_results.txt";
+        std::string str_result = "MIP_results";
+        if (parameters.annealing) str_result += "_annealing";
+        else str_result += "_irradiation";        
+        str_result += ".txt";
         FILE* ptr_res = fopen(str_result.c_str(), "a+");
         if (ptr_res == NULL)
         {
@@ -665,7 +671,10 @@ void Analyzer::AnalyzeRun(int run)
     else fitRun(file, run);
 
 	if ((!parameters.stdout_flag)&&(parameters.runkey != "MIP")) {
-		std::string str_result = "monitoring_results.txt";
+		std::string str_result = "monitoring_results";
+        if (parameters.annealing) str_result += "_annealing";
+        else str_result += "_irradiation";        
+        str_result += ".txt";
 		FILE* ptr_res = fopen(str_result.c_str(), "a+");
 		if (ptr_res == NULL)
 		{
