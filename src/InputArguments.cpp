@@ -63,6 +63,15 @@ InputArguments::InputArguments(int argv, char *argc[])
                 {
                     parameters.root_tree = true; break;
                 }
+                case 8:
+                {
+                    parameters.pathname = argc[i+1]; break;
+                }
+                case 9:
+                {
+                    parameters.annealing = true; break;
+
+                }
 
             } 
         }

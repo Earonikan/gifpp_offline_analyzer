@@ -145,9 +145,11 @@ void Analyzer::Processing()
         case 4:
             ProcessingMIPs();
             break;
+        case 5:
+            ProcessingAll();
+            break;
             
     }
-    //if (parameters.runkey == "ALL") ProcessingAll();
 }
 
 void Analyzer::ProcessingLED()
@@ -240,7 +242,7 @@ void Analyzer::ProcessingMonitoring()
     }
 }
 
-void Analyzer::ProcessingMIPs()
+void Analyzer::ProcessingAll()
 {
     std::string line;
     std::size_t found, found2;
@@ -287,12 +289,54 @@ void Analyzer::ProcessingMIPs()
     }
 }
 
+void Analyzer::ProcessingMIPs()
+{
+    std::string line;
+    std::size_t found, found2;
+    int runnum, prevrun = 0, prev_cosmic_rum = 0;
+
+    while (std::getline(runlist_file, line))
+    {
+        found = line.find("run");
+        found2 = line.find("type");
+        if (found != std::string::npos)
+        {   
+            runnum = std::stoi(line.substr(found + 4, found2 - found - 5));
+            if ((runnum >= parameters.runstart) && (runnum <= parameters.runstop) && (runnum > prevrun)) //std::cout << std::stoi(line.substr(4, 4)) << std::endl;
+            {
+                // found = line.find("type");
+				runtype_ = line.substr(found2 + 5, line.size() - (found2 + 4));
+				if (runtype_ == "LED") {
+                // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
+                	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
+                	AnalyzeRun(runnum);
+                    prevrun = runnum;
+				}
+                if (runtype_ == "SOURCE") {
+                // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
+                	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
+                	AnalyzeSource(runnum);
+                    prevrun = runnum;
+				}
+                if ((runtype_ == "COSMIC")&&(runnum > prev_cosmic_rum)) {
+                // std::cout << line.substr(found + 5, line.size() - (found + 4)) << std::endl;
+                	if (parameters.verbose > 0) std::cout << "Processing run " << runnum << " runtype " << runtype_ << std::endl;
+                	AnalyzeCOSMIC(runnum);
+                    prevrun = runnum;
+                    prev_cosmic_rum = runnum + 33;
+				}
+            }
+        }
+        else std::cout << "Just skipping this ->" << line << std::endl;
+    }
+}
+
 void Analyzer::AnalyzeSource(int run) {
 
     output_ann.run = run;
     output.runtype = runtype_;
 	std::string filename;
-	filename +=	pathname;
+	filename +=	parameters.pathname;
 	if (run<1000) filename += "output00000";
 	else if (run<10000) filename += "output0000";
         else filename += "output000";
@@ -399,7 +443,7 @@ void Analyzer::AnalyzeCOSMIC(int run) {
 
     for (int i = run; i < run + 34; i = i + 11) {
 
-        filename = pathname;
+        filename = parameters.pathname;
         if (run<1000) filename += "output00000";
         else if (run<10000) filename += "output0000";
             else filename += "output000";
@@ -605,7 +649,7 @@ void Analyzer::AnalyzeRun(int run)
     output.run = run;
     output.runtype = runtype_;
 	std::string filename;
-	filename +=	pathname;
+	filename +=	parameters.pathname;
 	if (run<1000) filename += "output00000";
 	else if (run<10000) filename += "output0000";
         else filename += "output000";
@@ -620,7 +664,7 @@ void Analyzer::AnalyzeRun(int run)
 	}
     else fitRun(file, run);
 
-	if (!parameters.stdout_flag) {
+	if ((!parameters.stdout_flag)&&(parameters.runkey != "MIP")) {
 		std::string str_result = "monitoring_results.txt";
 		FILE* ptr_res = fopen(str_result.c_str(), "a+");
 		if (ptr_res == NULL)
@@ -646,7 +690,7 @@ void Analyzer::AnalyzeRun(int run)
     	fclose(ptr_res);
 
 	}
-	else {
+	else if (parameters.runkey != "MIP") {
 		printf("%d\t%s\t%ld\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", output.run,
 												                                    output.runtype.c_str(), output.timestamp,
 				                                                                    output.Gain1, output.Gain2,
@@ -671,7 +715,7 @@ void Analyzer::AnalyzeRun(int run)
         hcoll.h_ch1->Write();
         hcoll.h_ch2->SetDirectory(root_file->GetDirectory(path.c_str()));
         hcoll.h_ch2->Write();
-        if (parameters.runkey != "MIP") {
+        if (!parameters.annealing) {
             hcoll.h_ch1b->SetDirectory(root_file->GetDirectory(path.c_str()));
             hcoll.h_ch1b->Write();
             hcoll.h_ch2b->SetDirectory(root_file->GetDirectory(path.c_str()));

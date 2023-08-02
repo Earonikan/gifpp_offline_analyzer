@@ -5,13 +5,15 @@
 struct Parameters
 {
     std::string runlist_filename = "/home/qfl/online/midas_digi/daq/runs_history.txt";
+    std::string pathname = "/home/qfl/online/midas_digi/daq/";
     int runstart = 0;
-    int runstop = 99999;
+    int runstop = 999999;
     bool stdout_flag = false;
     bool root_tree = false;
+    bool annealing = false;
     int verbose = 0;
-    std::vector<std::string> argKeys = {"--runtype", "--filename", "--runnumber", "--runrange", "--stdout", "--verbose", "--root"};
-    std::vector<std::string> runTypes = {"BVSCAN", "LED", "MONITORING", "MIP"};
+    std::vector<std::string> argKeys = {"--runtype", "--runlist", "--runnumber", "--runrange", "--stdout", "--verbose", "--root", "--pathname", "--annealing"};
+    std::vector<std::string> runTypes = {"BVSCAN", "LED", "MONITORING", "MIP", "ALL"};
     std::string runkey = runTypes[2];
     std::string data_start = "Wed Jun  7 22:39:50 2023";
     std::string data_annealing = "Wed Jun 28 08:10:54 2023";

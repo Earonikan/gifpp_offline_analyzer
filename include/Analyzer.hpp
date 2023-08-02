@@ -30,7 +30,6 @@ private:
     GenPoisParams fp;
     HistoCollection hcoll;
     std::string runtype_;
-    std::string pathname = "/home/qfl/online/midas_digi/daq/";
     Date dt;
     TFile *root_file;
     TTree *tree;
@@ -43,6 +42,7 @@ private:
     void ProcessingMonitoring();
     void ProcessingLED();
     void ProcessingBVSCAN();
+    void ProcessingAll();
     void ProcessingMIPs();
     long int TimeConverterToSec(std::string date1, std::string date2);
 public:
