@@ -33,7 +33,13 @@ Analyzer::Analyzer(int argv, char *argc[])
 
     runlist_file.open(parameters.runlist_filename);
 
-    if (parameters.root_tree) {root_file = new TFile("GIFpp_Data.root","recreate");}
+    if (parameters.root_tree)
+    {
+        std::string str_result = "GIFpp_Data";
+        if (parameters.annealing) str_result += "_annealing";
+        else str_result += "_irradiation";        
+        str_result += ".root";
+        root_file = new TFile(str_result.c_str(), "recreate");}
         
     if (!runlist_file.is_open())
     {
@@ -388,7 +394,7 @@ void Analyzer::AnalyzeSource(int run) {
 
     
     if (!parameters.stdout_flag) {
-        std::string str_result = "MIP_results.txt";
+        std::string str_result = "MIP_results";
         if (parameters.annealing) str_result += "_annealing";
         else str_result += "_irradiation";        
         str_result += ".txt";
